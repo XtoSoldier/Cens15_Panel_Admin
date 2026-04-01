@@ -1,346 +1,192 @@
-/**
-=========================================================
-* Material Dashboard 2 React - v2.2.0
-=========================================================
+import { useState } from "react";
 
-* Product Page: https://www.creative-tim.com/product/material-dashboard-react
-* Copyright 2023 Creative Tim (https://www.creative-tim.com)
-
-Coded by www.creative-tim.com
-
- =========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-*/
-
-import { useState, useEffect } from "react";
-
-// react-github-btn
-import GitHubButton from "react-github-btn";
-
-// @mui material components
-import Divider from "@mui/material/Divider";
+import Drawer from "@mui/material/Drawer";
+import Box from "@mui/material/Box";
 import Switch from "@mui/material/Switch";
 import IconButton from "@mui/material/IconButton";
-import Link from "@mui/material/Link";
+import Tooltip from "@mui/material/Tooltip";
 import Icon from "@mui/material/Icon";
-
-// @mui icons
-import TwitterIcon from "@mui/icons-material/Twitter";
-import FacebookIcon from "@mui/icons-material/Facebook";
-
-// Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
-import MDButton from "components/MDButton";
 
-// Custom styles for the Configurator
-import ConfiguratorRoot from "examples/Configurator/ConfiguratorRoot";
+import { useMaterialUIController } from "context";
 
-// Material Dashboard 2 React context
 import {
-  useMaterialUIController,
   setOpenConfigurator,
   setTransparentSidenav,
   setWhiteSidenav,
-  setFixedNavbar,
-  setSidenavColor,
   setDarkMode,
-} from "context";
+} from "store/slices/uiSlice";
+
+const SIDENAV_WIDTH = 200;
+const TOGGLE_SIZE = 36;
 
 function Configurator() {
   const [controller, dispatch] = useMaterialUIController();
-  const {
-    openConfigurator,
-    fixedNavbar,
-    sidenavColor,
-    transparentSidenav,
-    whiteSidenav,
-    darkMode,
-  } = controller;
-  const [disabled, setDisabled] = useState(false);
-  const sidenavColors = ["primary", "dark", "info", "success", "warning", "error"];
+  const { openConfigurator, transparentSidenav, whiteSidenav, darkMode } = controller;
+  const [hoveredType, setHoveredType] = useState(null);
 
-  // Use the useEffect hook to change the button state for the sidenav type based on window size.
-  useEffect(() => {
-    // A function that sets the disabled state of the buttons for the sidenav type.
-    function handleDisabled() {
-      return window.innerWidth > 1200 ? setDisabled(false) : setDisabled(true);
-    }
+  const toggleConfigurator = () => dispatch(setOpenConfigurator(!openConfigurator));
 
-    // The event listener that's calling the handleDisabled function when resizing the window.
-    window.addEventListener("resize", handleDisabled);
-
-    // Call the handleDisabled function to set the state with the initial value.
-    handleDisabled();
-
-    // Remove event listener on cleanup
-    return () => window.removeEventListener("resize", handleDisabled);
-  }, []);
-
-  const handleCloseConfigurator = () => setOpenConfigurator(dispatch, false);
   const handleTransparentSidenav = () => {
-    setTransparentSidenav(dispatch, true);
-    setWhiteSidenav(dispatch, false);
+    dispatch(setTransparentSidenav(true));
+    dispatch(setWhiteSidenav(false));
   };
   const handleWhiteSidenav = () => {
-    setWhiteSidenav(dispatch, true);
-    setTransparentSidenav(dispatch, false);
+    dispatch(setWhiteSidenav(true));
+    dispatch(setTransparentSidenav(false));
   };
   const handleDarkSidenav = () => {
-    setWhiteSidenav(dispatch, false);
-    setTransparentSidenav(dispatch, false);
+    dispatch(setWhiteSidenav(false));
+    dispatch(setTransparentSidenav(false));
   };
-  const handleFixedNavbar = () => setFixedNavbar(dispatch, !fixedNavbar);
-  const handleDarkMode = () => setDarkMode(dispatch, !darkMode);
+  const handleDarkMode = () => dispatch(setDarkMode(!darkMode));
 
-  // sidenav type buttons styles
-  const sidenavTypeButtonsStyles = ({
-    functions: { pxToRem },
-    palette: { white, dark, background },
-    borders: { borderWidth },
-  }) => ({
-    height: pxToRem(39),
-    background: darkMode ? background.sidenav : white.main,
-    color: darkMode ? white.main : dark.main,
-    border: `${borderWidth[1]} solid ${darkMode ? white.main : dark.main}`,
+  const isDark = !transparentSidenav && !whiteSidenav;
+  const isTransparent = transparentSidenav && !whiteSidenav;
+  const isWhite = whiteSidenav && !transparentSidenav;
 
-    "&:hover, &:focus, &:focus:not(:hover)": {
-      background: darkMode ? background.sidenav : white.main,
-      color: darkMode ? white.main : dark.main,
-      border: `${borderWidth[1]} solid ${darkMode ? white.main : dark.main}`,
-    },
-  });
-
-  // sidenav type active button styles
-  const sidenavTypeActiveButtonStyles = ({
-    functions: { pxToRem, linearGradient },
-    palette: { white, gradients, background },
-  }) => ({
-    height: pxToRem(39),
-    background: darkMode ? white.main : linearGradient(gradients.dark.main, gradients.dark.state),
-    color: darkMode ? background.sidenav : white.main,
-
-    "&:hover, &:focus, &:focus:not(:hover)": {
-      background: darkMode ? white.main : linearGradient(gradients.dark.main, gradients.dark.state),
-      color: darkMode ? background.sidenav : white.main,
-    },
-  });
+  const typeBtn = (label, active, onClick) => (
+    <Box
+      onClick={onClick}
+      onMouseEnter={() => setHoveredType(label)}
+      onMouseLeave={() => setHoveredType(null)}
+      sx={{
+        px: 0.75,
+        py: 0.35,
+        borderRadius: 1,
+        cursor: "pointer",
+        fontSize: "0.7rem",
+        fontWeight: 700,
+        transition: "all 0.15s",
+        color: active ? "#fff" : "#555",
+        background: active ? "#333" : hoveredType === label ? "rgba(0,0,0,0.08)" : "transparent",
+      }}
+    >
+      {label}
+    </Box>
+  );
 
   return (
-    <ConfiguratorRoot variant="permanent" ownerState={{ openConfigurator }}>
+    <>
       <MDBox
-        display="flex"
-        justifyContent="space-between"
-        alignItems="baseline"
-        pt={4}
-        pb={0.5}
-        px={3}
+        component={IconButton}
+        onClick={toggleConfigurator}
+        disableRipple
+        sx={{
+          minWidth: TOGGLE_SIZE,
+          width: TOGGLE_SIZE,
+          height: TOGGLE_SIZE,
+          bgcolor: darkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+          borderRadius: "8px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "background 0.2s",
+          zIndex: 1100,
+          "&:hover": {
+            bgcolor: darkMode ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)",
+          },
+        }}
       >
-        <MDBox>
-          <MDTypography variant="h5">Material UI Configurator</MDTypography>
-          <MDTypography variant="body2" color="text">
-            See our dashboard options.
-          </MDTypography>
-        </MDBox>
-
-        <Icon
-          sx={({ typography: { size }, palette: { dark, white } }) => ({
-            fontSize: `${size.lg} !important`,
-            color: darkMode ? white.main : dark.main,
-            stroke: "currentColor",
-            strokeWidth: "2px",
-            cursor: "pointer",
-            transform: "translateY(5px)",
-          })}
-          onClick={handleCloseConfigurator}
-        >
-          close
-        </Icon>
+        <Tooltip title="Tema" placement="left">
+          <Icon sx={{ color: darkMode ? "#ccc" : "#555", fontSize: "18px !important" }}>
+            {openConfigurator ? "close" : "palette"}
+          </Icon>
+        </Tooltip>
       </MDBox>
 
-      <Divider />
-
-      <MDBox pt={0.5} pb={3} px={3}>
-        <MDBox>
-          <MDTypography variant="h6">Sidenav Colors</MDTypography>
-
-          <MDBox mb={0.5}>
-            {sidenavColors.map((color) => (
-              <IconButton
-                key={color}
-                sx={({
-                  borders: { borderWidth },
-                  palette: { white, dark, background },
-                  transitions,
-                }) => ({
-                  width: "24px",
-                  height: "24px",
-                  padding: 0,
-                  border: `${borderWidth[1]} solid ${darkMode ? background.sidenav : white.main}`,
-                  borderColor: () => {
-                    let borderColorValue = sidenavColor === color && dark.main;
-
-                    if (darkMode && sidenavColor === color) {
-                      borderColorValue = white.main;
-                    }
-
-                    return borderColorValue;
-                  },
-                  transition: transitions.create("border-color", {
-                    easing: transitions.easing.sharp,
-                    duration: transitions.duration.shorter,
-                  }),
-                  backgroundImage: ({ functions: { linearGradient }, palette: { gradients } }) =>
-                    linearGradient(gradients[color].main, gradients[color].state),
-
-                  "&:not(:last-child)": {
-                    mr: 1,
-                  },
-
-                  "&:hover, &:focus, &:active": {
-                    borderColor: darkMode ? white.main : dark.main,
-                  },
-                })}
-                onClick={() => setSidenavColor(dispatch, color)}
-              />
-            ))}
-          </MDBox>
-        </MDBox>
-
-        <MDBox mt={3} lineHeight={1}>
-          <MDTypography variant="h6">Sidenav Type</MDTypography>
-          <MDTypography variant="button" color="text">
-            Choose between different sidenav types.
-          </MDTypography>
-
-          <MDBox
-            sx={{
-              display: "flex",
-              mt: 2,
-              mr: 1,
-            }}
-          >
-            <MDButton
-              color="dark"
-              variant="gradient"
-              onClick={handleDarkSidenav}
-              disabled={disabled}
-              fullWidth
-              sx={
-                !transparentSidenav && !whiteSidenav
-                  ? sidenavTypeActiveButtonStyles
-                  : sidenavTypeButtonsStyles
-              }
-            >
-              Dark
-            </MDButton>
-            <MDBox sx={{ mx: 1, width: "8rem", minWidth: "8rem" }}>
-              <MDButton
-                color="dark"
-                variant="gradient"
-                onClick={handleTransparentSidenav}
-                disabled={disabled}
-                fullWidth
-                sx={
-                  transparentSidenav && !whiteSidenav
-                    ? sidenavTypeActiveButtonStyles
-                    : sidenavTypeButtonsStyles
-                }
-              >
-                Transparent
-              </MDButton>
-            </MDBox>
-            <MDButton
-              color="dark"
-              variant="gradient"
-              onClick={handleWhiteSidenav}
-              disabled={disabled}
-              fullWidth
-              sx={
-                whiteSidenav && !transparentSidenav
-                  ? sidenavTypeActiveButtonStyles
-                  : sidenavTypeButtonsStyles
-              }
-            >
-              White
-            </MDButton>
-          </MDBox>
-        </MDBox>
-        <MDBox
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mt={3}
-          lineHeight={1}
+      <Drawer
+        variant="persistent"
+        anchor="right"
+        open={openConfigurator}
+        sx={{
+          width: openConfigurator ? SIDENAV_WIDTH : 0,
+          flexShrink: 0,
+          overflow: "hidden",
+          "& .MuiDrawer-paper": {
+            width: SIDENAV_WIDTH,
+            position: "fixed",
+            top: 0,
+            right: 0,
+            height: "100vh",
+            bgcolor: "#ffffff",
+            border: "none",
+            boxShadow: "-2px 0 12px rgba(0,0,0,0.12)",
+            transform: openConfigurator ? "translateX(0)" : `translateX(${SIDENAV_WIDTH}px)`,
+            transition: "transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
+            overflow: "hidden",
+          },
+        }}
+      >
+        <Box
+          sx={{
+            p: 2.5,
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 3,
+          }}
         >
-          <MDTypography variant="h6">Navbar Fixed</MDTypography>
-
-          <Switch checked={fixedNavbar} onChange={handleFixedNavbar} />
-        </MDBox>
-        <Divider />
-        <MDBox display="flex" justifyContent="space-between" alignItems="center" lineHeight={1}>
-          <MDTypography variant="h6">Light / Dark</MDTypography>
-
-          <Switch checked={darkMode} onChange={handleDarkMode} />
-        </MDBox>
-        <Divider />
-        <MDBox mt={3} mb={2}>
-          <MDButton
-            component={Link}
-            href="https://www.creative-tim.com/learning-lab/react/quick-start/material-dashboard/"
-            target="_blank"
-            rel="noreferrer"
-            color={darkMode ? "light" : "dark"}
-            variant="outlined"
-            fullWidth
-          >
-            view documentation
-          </MDButton>
-        </MDBox>
-        <MDBox display="flex" justifyContent="center">
-          <GitHubButton
-            href="https://github.com/creativetimofficial/material-dashboard-react"
-            data-icon="octicon-star"
-            data-size="large"
-            data-show-count="true"
-            aria-label="Star creativetimofficial/material-dashboard-react on GitHub"
-          >
-            Star
-          </GitHubButton>
-        </MDBox>
-        <MDBox mt={2} textAlign="center">
-          <MDBox mb={0.5}>
-            <MDTypography variant="h6">Thank you for sharing!</MDTypography>
-          </MDBox>
-
-          <MDBox display="flex" justifyContent="center">
-            <MDBox mr={1.5}>
-              <MDButton
-                component={Link}
-                href="//twitter.com/intent/tweet?text=Check%20Material%20Dashboard%20React%20made%20by%20%40CreativeTim%20%23webdesign%20%23dashboard%20%23react%20%mui&url=https%3A%2F%2Fwww.creative-tim.com%2Fproduct%2Fmaterial-dashboard-react"
-                target="_blank"
-                rel="noreferrer"
-                color="dark"
-              >
-                <TwitterIcon />
-                &nbsp; Tweet
-              </MDButton>
-            </MDBox>
-            <MDButton
-              component={Link}
-              href="https://www.facebook.com/sharer/sharer.php?u=https://www.creative-tim.com/product/material-dashboard-react"
-              target="_blank"
-              rel="noreferrer"
-              color="dark"
+          <Box>
+            <MDTypography
+              variant="caption"
+              fontWeight="bold"
+              color="#111"
+              sx={{ textTransform: "uppercase", letterSpacing: 1 }}
             >
-              <FacebookIcon />
-              &nbsp; Share
-            </MDButton>
-          </MDBox>
-        </MDBox>
-      </MDBox>
-    </ConfiguratorRoot>
+              Tema
+            </MDTypography>
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+              mt={1}
+              sx={{
+                p: 1.5,
+                borderRadius: 1.5,
+                bgcolor: "rgba(0,0,0,0.04)",
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={1}>
+                <Icon sx={{ fontSize: "15px !important", color: "#666" }}>
+                  {darkMode ? "dark_mode" : "light_mode"}
+                </Icon>
+                <MDTypography variant="caption" color="#111">
+                  Oscuro
+                </MDTypography>
+              </Box>
+              <Switch checked={darkMode} onChange={handleDarkMode} size="small" />
+            </Box>
+          </Box>
+
+          <Box>
+            <MDTypography
+              variant="caption"
+              fontWeight="bold"
+              color="#111"
+              sx={{ textTransform: "uppercase", letterSpacing: 1 }}
+            >
+              Barra lateral
+            </MDTypography>
+            <Box
+              mt={1}
+              sx={{
+                p: 1.5,
+                borderRadius: 1.5,
+                bgcolor: "rgba(0,0,0,0.04)",
+              }}
+            >
+              <Box display="flex" gap={0.5} justifyContent="center" mb={1}>
+                {typeBtn("Oscuro", isDark, handleDarkSidenav)}
+                {typeBtn("Transp.", isTransparent, handleTransparentSidenav)}
+                {typeBtn("Blanco", isWhite, handleWhiteSidenav)}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </Drawer>
+    </>
   );
 }
 

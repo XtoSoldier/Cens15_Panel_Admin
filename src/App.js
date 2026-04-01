@@ -14,21 +14,21 @@ Coded by www.creative-tim.com
 */
 
 import { useState, useEffect, useMemo } from "react";
-
-// react-router components
+import { useDispatch } from "react-redux";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
-// @mui material components
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import Icon from "@mui/material/Icon";
 
-// Material Dashboard 2 React components
 import MDBox from "components/MDBox";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
-// Material Dashboard 2 React example components
 import Sidenav from "examples/Sidenav";
-import Configurator from "examples/Configurator";
+
+import LoginModal from "components/LoginModal";
+import { LoginModalProvider } from "context/LoginModalContext";
+import ProtectedRoute from "components/ProtectedRoute";
 
 // Material Dashboard 2 React themes
 import theme from "assets/theme";
@@ -47,27 +47,40 @@ import createCache from "@emotion/cache";
 import routes from "routes";
 
 // Material Dashboard 2 React contexts
-import { useMaterialUIController, setMiniSidenav, setOpenConfigurator } from "context";
+import { useMaterialUIController } from "context";
+import { setAuth } from "store/slices/authSlice";
+import { setMiniSidenav } from "store/slices/uiSlice";
+import authService from "services/authService";
+import NotFound from "layouts/notFound";
+import UserForm from "layouts/userForm";
 
 // Images
 import brandWhite from "assets/images/logo-ct.png";
 import brandDark from "assets/images/logo-ct-dark.png";
 
 export default function App() {
-  const [controller, dispatch] = useMaterialUIController();
+  const dispatch = useDispatch();
+  const [controller] = useMaterialUIController();
   const {
     miniSidenav,
     direction,
     layout,
-    openConfigurator,
     sidenavColor,
     transparentSidenav,
     whiteSidenav,
     darkMode,
+    isAuthenticated,
   } = controller;
-  const [onMouseEnter, setOnMouseEnter] = useState(false);
   const [rtlCache, setRtlCache] = useState(null);
   const { pathname } = useLocation();
+
+  // Hydrate auth state from localStorage on mount
+  useEffect(() => {
+    const storedUser = authService.getCurrentUser();
+    if (storedUser && authService.isAuthenticated()) {
+      dispatch(setAuth({ isAuthenticated: true, currentUser: storedUser }));
+    }
+  }, [dispatch]);
 
   // Cache for the rtl
   useMemo(() => {
@@ -78,25 +91,6 @@ export default function App() {
 
     setRtlCache(cacheRtl);
   }, []);
-
-  // Open sidenav when mouse enter on mini sidenav
-  const handleOnMouseEnter = () => {
-    if (miniSidenav && !onMouseEnter) {
-      setMiniSidenav(dispatch, false);
-      setOnMouseEnter(true);
-    }
-  };
-
-  // Close sidenav when mouse leave mini sidenav
-  const handleOnMouseLeave = () => {
-    if (onMouseEnter) {
-      setMiniSidenav(dispatch, true);
-      setOnMouseEnter(false);
-    }
-  };
-
-  // Change the openConfigurator state
-  const handleConfiguratorOpen = () => setOpenConfigurator(dispatch, !openConfigurator);
 
   // Setting the dir attribute for the body element
   useEffect(() => {
@@ -116,83 +110,97 @@ export default function App() {
       }
 
       if (route.route) {
-        return <Route exact path={route.route} element={route.component} key={route.key} />;
+        const isHome = route.key === "home";
+        return (
+          <Route
+            exact
+            path={route.route}
+            element={isHome ? route.component : <ProtectedRoute>{route.component}</ProtectedRoute>}
+            key={route.key}
+          />
+        );
       }
 
       return null;
     });
 
-  const configsButton = (
+  // Boundary toggle button: placed at the right edge of the sidenav boundary
+  const boundaryLeft = miniSidenav ? 96 : 250;
+  const leftPos = boundaryLeft - 14;
+  const toggleBoundarySidenav = () => dispatch(setMiniSidenav(!miniSidenav));
+
+  const boundaryToggleButton = (
     <MDBox
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      width="3.25rem"
-      height="3.25rem"
-      bgColor="white"
-      shadow="sm"
-      borderRadius="50%"
-      position="fixed"
-      right="2rem"
-      bottom="2rem"
-      zIndex={99}
-      color="dark"
-      sx={{ cursor: "pointer" }}
-      onClick={handleConfiguratorOpen}
+      onClick={toggleBoundarySidenav}
+      sx={{
+        position: "fixed",
+        top: "50%",
+        left: leftPos,
+        transform: "translateY(-50%)",
+        width: 28,
+        height: 28,
+        bgcolor: "rgba(0,0,0,.6)",
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: 1,
+        cursor: "pointer",
+        zIndex: 9999,
+      }}
+      aria-label="Toggle sidenav"
+      title={miniSidenav ? "Expand" : "Collapse"}
     >
-      <Icon fontSize="small" color="inherit">
-        settings
-      </Icon>
+      {miniSidenav ? (
+        <ChevronRightIcon sx={{ color: "white" }} fontSize="small" />
+      ) : (
+        <ChevronLeftIcon sx={{ color: "white" }} fontSize="small" />
+      )}
     </MDBox>
   );
 
   return direction === "rtl" ? (
     <CacheProvider value={rtlCache}>
       <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
-        <CssBaseline />
-        {layout === "dashboard" && (
-          <>
-            <Sidenav
-              color={sidenavColor}
-              brand={(transparentSidenav && !darkMode) || whiteSidenav ? brandDark : brandWhite}
-              brandName="Material Dashboard 2"
-              routes={routes}
-              onMouseEnter={handleOnMouseEnter}
-              onMouseLeave={handleOnMouseLeave}
-            />
-            <Configurator />
-            {configsButton}
-          </>
-        )}
-        {layout === "vr" && <Configurator />}
-        <Routes>
-          {getRoutes(routes)}
-          <Route path="*" element={<Navigate to="/dashboard" />} />
-        </Routes>
+        <LoginModalProvider>
+          <CssBaseline />
+          {layout === "dashboard" && isAuthenticated && (
+            <>
+              <Sidenav
+                color={sidenavColor}
+                brand={(transparentSidenav && !darkMode) || whiteSidenav ? brandDark : brandWhite}
+                brandName="Material Dashboard 2"
+                routes={routes}
+              />
+              {boundaryToggleButton}
+            </>
+          )}
+          <Routes>
+            {getRoutes(routes)}
+            <Route path="/usuarios/nuevo" element={<UserForm />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <LoginModal />
+        </LoginModalProvider>
       </ThemeProvider>
     </CacheProvider>
   ) : (
     <ThemeProvider theme={darkMode ? themeDark : theme}>
-      <CssBaseline />
-      {layout === "dashboard" && (
-        <>
-          <Sidenav
-            color={sidenavColor}
-            brand={(transparentSidenav && !darkMode) || whiteSidenav ? brandDark : brandWhite}
-            brandName="Material Dashboard 2"
-            routes={routes}
-            onMouseEnter={handleOnMouseEnter}
-            onMouseLeave={handleOnMouseLeave}
-          />
-          <Configurator />
-          {configsButton}
-        </>
-      )}
-      {layout === "vr" && <Configurator />}
-      <Routes>
-        {getRoutes(routes)}
-        <Route path="*" element={<Navigate to="/dashboard" />} />
-      </Routes>
+      <LoginModalProvider>
+        <CssBaseline />
+        {layout === "dashboard" && isAuthenticated && (
+          <>
+            <Sidenav color={sidenavColor} brandName="CENS 15 - Administración" routes={routes} />
+            {boundaryToggleButton}
+          </>
+        )}
+        <Routes>
+          {getRoutes(routes)}
+          <Route path="/usuarios/nuevo" element={<UserForm />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <LoginModal />
+      </LoginModalProvider>
     </ThemeProvider>
   );
 }
