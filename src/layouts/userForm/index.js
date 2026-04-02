@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
+import CircularProgress from "@mui/material/CircularProgress";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDInput from "components/MDInput";
@@ -12,8 +13,12 @@ import Footer from "examples/Footer";
 import userService from "services/userService";
 
 function UserForm() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const isEditMode = Boolean(id);
+
+  const [loading, setLoading] = useState(isEditMode);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -23,6 +28,31 @@ function UserForm() {
     confirmPassword: "",
   });
 
+  useEffect(() => {
+    if (!isEditMode) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchUser = async () => {
+      try {
+        const user = await userService.getById(id);
+        setFormData({
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          email: user.email || "",
+          password: "",
+          confirmPassword: "",
+        });
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, [id, isEditMode]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -31,31 +61,64 @@ function UserForm() {
     e.preventDefault();
     setError(null);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Las contraseñas no coinciden.");
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      setError("Nombre, Apellido y Email son obligatorios.");
       return;
     }
 
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError("Todos los campos son obligatorios.");
-      return;
+    if (!isEditMode) {
+      if (!formData.password) {
+        setError("La contraseña es obligatoria.");
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError("Las contraseñas no coinciden.");
+        return;
+      }
     }
 
-    setLoading(true);
+    if (isEditMode) {
+      if (formData.password && formData.password !== formData.confirmPassword) {
+        setError("Las contraseñas no coinciden.");
+        return;
+      }
+    }
+
+    setSaving(true);
     try {
-      await userService.create({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+      const userData = {
+        nombres: formData.firstName,
+        apellido: formData.lastName,
         email: formData.email,
-        password: formData.password,
-      });
+      };
+
+      if (formData.password) {
+        userData.password = formData.password;
+      }
+
+      if (isEditMode) {
+        await userService.update(id, userData);
+      } else {
+        await userService.create(userData);
+      }
       navigate("/usuarios");
     } catch (err) {
-      setError(err.message || "Error al crear el usuario.");
+      setError(err.message || "Error al guardar.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" py={8}>
+          <CircularProgress color="info" />
+        </MDBox>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -75,7 +138,7 @@ function UserForm() {
                 coloredShadow="info"
               >
                 <MDTypography variant="h6" color="white">
-                  Nuevo Usuario
+                  {isEditMode ? "Editar Usuario" : "Nuevo Usuario"}
                 </MDTypography>
               </MDBox>
               <MDBox pt={4} pb={3} px={3}>
@@ -88,7 +151,7 @@ function UserForm() {
                         value={formData.firstName}
                         onChange={handleChange}
                         fullWidth
-                        disabled={loading}
+                        disabled={saving}
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -98,20 +161,22 @@ function UserForm() {
                         value={formData.lastName}
                         onChange={handleChange}
                         fullWidth
-                        disabled={loading}
+                        disabled={saving}
                       />
                     </Grid>
-                    <Grid item xs={12}>
-                      <MDInput
-                        type="email"
-                        label="Email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        fullWidth
-                        disabled={loading}
-                      />
-                    </Grid>
+                    {!isEditMode && (
+                      <Grid item xs={12}>
+                        <MDInput
+                          type="email"
+                          label="Email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          fullWidth
+                          disabled={saving}
+                        />
+                      </Grid>
+                    )}
                     <Grid item xs={12} md={6}>
                       <MDInput
                         type="password"
@@ -120,7 +185,7 @@ function UserForm() {
                         value={formData.password}
                         onChange={handleChange}
                         fullWidth
-                        disabled={loading}
+                        disabled={saving}
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -131,7 +196,7 @@ function UserForm() {
                         value={formData.confirmPassword}
                         onChange={handleChange}
                         fullWidth
-                        disabled={loading}
+                        disabled={saving}
                       />
                     </Grid>
                   </Grid>
@@ -141,14 +206,14 @@ function UserForm() {
                     </MDTypography>
                   )}
                   <MDBox mt={4} display="flex" gap={2}>
-                    <MDButton variant="gradient" color="info" type="submit" disabled={loading}>
-                      {loading ? "Guardando..." : "Guardar"}
+                    <MDButton variant="gradient" color="info" type="submit" disabled={saving}>
+                      {saving ? "Guardando..." : isEditMode ? "Guardar cambios" : "Crear Usuario"}
                     </MDButton>
                     <MDButton
                       variant="outlined"
                       color="dark"
                       onClick={() => navigate("/usuarios")}
-                      disabled={loading}
+                      disabled={saving}
                     >
                       Cancelar
                     </MDButton>

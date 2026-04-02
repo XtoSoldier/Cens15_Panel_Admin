@@ -38,10 +38,12 @@ Coded by www.creative-tim.com
 // Material Dashboard 2 React layouts
 import Home from "layouts/home";
 import Tables from "layouts/tables";
-import Billing from "layouts/billing";
+import Orientaciones from "layouts/orientaciones";
+import Anexos from "layouts/anexos";
+import Cursos from "layouts/cursos";
+import Materias from "layouts/materias";
+import Docentes from "layouts/docentes";
 import Notifications from "layouts/notifications";
-import Profile from "layouts/profile";
-import UserForm from "layouts/userForm";
 
 // @mui icons
 import Icon from "@mui/material/Icon";
@@ -69,7 +71,15 @@ const routes = [
     key: "orientaciones",
     icon: <Icon fontSize="small">school_icon</Icon>,
     route: "/orientaciones",
-    component: <Billing />,
+    component: <Orientaciones />,
+  },
+  {
+    type: "collapse",
+    name: "Anexos",
+    key: "anexos",
+    icon: <Icon fontSize="small">folder_icon</Icon>,
+    route: "/anexos",
+    component: <Anexos />,
   },
   {
     type: "collapse",
@@ -77,7 +87,7 @@ const routes = [
     key: "cursos",
     icon: <Icon fontSize="small">real_estate_agent_icon</Icon>,
     route: "/cursos",
-    component: <Billing />,
+    component: <Cursos />,
   },
   {
     type: "collapse",
@@ -85,7 +95,7 @@ const routes = [
     key: "materias",
     icon: <Icon fontSize="small">list_alt_icon</Icon>,
     route: "/materias",
-    component: <Notifications />,
+    component: <Materias />,
   },
   {
     type: "collapse",
@@ -93,7 +103,7 @@ const routes = [
     key: "docentes",
     icon: <Icon fontSize="small">badge_icon</Icon>,
     route: "/docentes",
-    component: <Profile />,
+    component: <Docentes />,
   },
 ];
 

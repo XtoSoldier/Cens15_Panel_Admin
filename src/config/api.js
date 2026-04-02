@@ -25,19 +25,29 @@ const getHeaders = (extraHeaders = {}) => {
 };
 
 const handleResponse = async (response) => {
+  const contentType = response.headers.get("content-type");
+
   if (!response.ok) {
     let errorMessage = `Error ${response.status}: ${response.statusText}`;
-    try {
-      const errorData = await response.json();
-      if (errorData?.message) errorMessage = errorData.message;
-      else if (errorData?.error) errorMessage = errorData.error;
-    } catch {
-      // respuesta sin body JSON
+    if (contentType && contentType.includes("application/json")) {
+      try {
+        const errorData = await response.json();
+        if (errorData?.message) errorMessage = errorData.message;
+        else if (errorData?.error) errorMessage = errorData.error;
+        else if (typeof errorData === "string") errorMessage = errorData;
+      } catch {
+        // respuesta sin body JSON
+      }
+    } else {
+      try {
+        errorMessage = await response.text();
+      } catch {
+        // fallback
+      }
     }
     throw new Error(errorMessage);
   }
 
-  const contentType = response.headers.get("content-type");
   if (contentType && contentType.includes("application/json")) {
     return response.json();
   }

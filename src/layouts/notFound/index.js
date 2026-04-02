@@ -23,7 +23,7 @@ function NotFound() {
       <MDTypography variant="body1" color="text" mb={4}>
         La página que buscas no existe o fue movida.
       </MDTypography>
-      <MDButton component={Link} to="/dashboard" variant="gradient" color="info">
+      <MDButton component={Link} to="/home" variant="gradient" color="info">
         Volver al inicio
       </MDButton>
     </MDBox>

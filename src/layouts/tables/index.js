@@ -20,6 +20,7 @@ import MDButton from "components/MDButton";
 import Icon from "@mui/material/Icon";
 
 import userService from "services/userService";
+import StatusModal from "components/StatusModal";
 
 const UserCell = ({ name, email }) => (
   <MDBox display="flex" alignItems="center" lineHeight={1}>
@@ -32,8 +33,8 @@ const UserCell = ({ name, email }) => (
   </MDBox>
 );
 
-const StatusCell = ({ status }) => (
-  <MDBox ml={-1}>
+const StatusCell = ({ status, onClick }) => (
+  <MDBox ml={-1} onClick={onClick} sx={{ cursor: "pointer" }}>
     <MDBadge
       badgeContent={status ? "Activo" : "Inactivo"}
       color={status ? "success" : "dark"}
@@ -50,6 +51,7 @@ UserCell.propTypes = {
 
 StatusCell.propTypes = {
   status: PropTypes.bool,
+  onClick: PropTypes.func.isRequired,
 };
 
 function Tables() {
@@ -58,19 +60,56 @@ function Tables() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [statusModal, setStatusModal] = useState({ open: false, user: null, loading: false });
+
+  const fetchUsers = async () => {
+    try {
+      const data = await userService.getAll();
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const data = await userService.getAll();
-        setUsers(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchUsers();
   }, []);
+
+  const handleStatusToggle = (user) => {
+    setStatusModal({ open: true, user, loading: false });
+  };
+
+  const handleStatusConfirm = async () => {
+    const { user } = statusModal;
+    setStatusModal((prev) => ({ ...prev, loading: true }));
+    try {
+      await userService.updateStatus(user.id, !user.status);
+      setStatusModal({ open: false, user: null, loading: false });
+      fetchUsers();
+    } catch (err) {
+      setStatusModal((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleStatusClose = () => {
+    setStatusModal({ open: false, user: null, loading: false });
+  };
+
+  const handleDelete = async (user) => {
+    if (
+      !window.confirm(`¿Estás seguro de eliminar al usuario "${user.firstName} ${user.lastName}"?`)
+    ) {
+      return;
+    }
+    try {
+      await userService.delete(user.id);
+      fetchUsers();
+    } catch (err) {
+      alert("Error al eliminar: " + err.message);
+    }
+  };
 
   const columns = [
     { Header: "Nombre", accessor: "name", align: "left" },
@@ -84,40 +123,27 @@ function Tables() {
     name: (
       <UserCell
         name={`${user.firstName || ""} ${user.lastName || ""}`.trim()}
-        email={user.email || ""}
+        email={user.email || "-"}
       />
     ),
     email: user.email || "-",
     role: (
       <MDTypography component="span" variant="caption" color="text">
-        {user.role?.name || "-"}
+        {user.role || "-"}
       </MDTypography>
     ),
-    status: <StatusCell status={user.status} />,
+    status: <StatusCell status={user.status} onClick={() => handleStatusToggle(user)} />,
     actions: (
       <MDBox display="flex" gap={1} justifyContent="center">
         <MDButton
           variant="text"
-          color="info"
-          size="small"
-          onClick={() => console.log("Ver", user.id)}
-        >
-          <Icon>visibility</Icon>
-        </MDButton>
-        <MDButton
-          variant="text"
           color="dark"
           size="small"
-          onClick={() => console.log("Editar", user.id)}
+          onClick={() => navigate(`/usuarios/editar/${user.id}`)}
         >
           <Icon>edit</Icon>
         </MDButton>
-        <MDButton
-          variant="text"
-          color="error"
-          size="small"
-          onClick={() => console.log("Eliminar", user.id)}
-        >
+        <MDButton variant="text" color="error" size="small" onClick={() => handleDelete(user)}>
           <Icon>delete</Icon>
         </MDButton>
       </MDBox>
@@ -182,6 +208,16 @@ function Tables() {
         </Grid>
       </MDBox>
       <Footer />
+      <StatusModal
+        open={statusModal.open}
+        onClose={handleStatusClose}
+        onConfirm={handleStatusConfirm}
+        userName={
+          statusModal.user ? `${statusModal.user.firstName} ${statusModal.user.lastName}` : ""
+        }
+        currentStatus={statusModal.user?.status}
+        loading={statusModal.loading}
+      />
     </DashboardLayout>
   );
 }

@@ -178,6 +178,7 @@ export default function App() {
           <Routes>
             {getRoutes(routes)}
             <Route path="/usuarios/nuevo" element={<UserForm />} />
+            <Route path="/usuarios/editar/:id" element={<UserForm />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <LoginModal />
@@ -197,6 +198,7 @@ export default function App() {
         <Routes>
           {getRoutes(routes)}
           <Route path="/usuarios/nuevo" element={<UserForm />} />
+          <Route path="/usuarios/editar/:id" element={<UserForm />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <LoginModal />
