@@ -11,7 +11,13 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
-import TextField from "@mui/material/TextField";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Checkbox from "@mui/material/Checkbox";
+import ListItemText from "@mui/material/ListItemText";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -24,28 +30,23 @@ import Footer from "examples/Footer";
 import DataTable from "examples/Tables/DataTable";
 
 import Icon from "@mui/material/Icon";
-import docenteService from "services/docenteService";
-import userService from "services/userService";
+import rolService from "services/rolService";
+import responsabilidadService from "services/responsabilidadService";
 
-function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error }) {
-  const [formData, setFormData] = useState({
-    nombres: "",
-    apellidos: "",
-    email: "",
-    userId: "",
-  });
+function FormModal({ open, onClose, onSave, initialData, saving, responsabilidades, error }) {
+  const [formData, setFormData] = useState({ nombre: "", responsabilidades: [] });
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
     if (initialData) {
+      const responsabilidadesIds =
+        initialData.responsibilityIds || initialData.responsabilidades || [];
       setFormData({
-        nombres: initialData.nombres || "",
-        apellidos: initialData.apellidos || "",
-        email: initialData.email || "",
-        userId: initialData.userId || "",
+        nombre: initialData.nombre || initialData.name || "",
+        responsabilidades: responsabilidadesIds.filter(Boolean),
       });
     } else {
-      setFormData({ nombres: "", apellidos: "", email: "", userId: "" });
+      setFormData({ nombre: "", responsabilidades: [] });
     }
     setFormError("");
   }, [initialData, open]);
@@ -61,95 +62,77 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleResponsabilidadesChange = (event) => {
+    const value = event.target.value;
+    setFormData((prev) => ({ ...prev, responsabilidades: value }));
+  };
+
   const handleSubmit = () => {
-    if (!formData.nombres.trim()) {
-      setFormError("El nombre del docente es obligatorio.");
-      return;
-    }
-    if (!formData.apellidos.trim()) {
-      setFormError("El apellido del docente es obligatorio.");
-      return;
-    }
-    if (!formData.email.trim()) {
-      setFormError("El email del docente es obligatorio.");
+    if (!formData.nombre.trim()) {
+      setFormError("El nombre del rol es obligatorio.");
       return;
     }
     setFormError("");
-
     const payload = {
-      nombres: formData.nombres.trim(),
-      apellidos: formData.apellidos.trim(),
-      email: formData.email.trim(),
+      name: formData.nombre,
+      responsibilityIds: formData.responsabilidades,
     };
-
-    if (formData.userId) {
-      payload.userId = formData.userId;
-    }
-
     onSave(payload);
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        {initialData ? "Editar Docente" : "Nuevo Docente"}
+        {initialData ? "Editar Rol" : "Nuevo Rol"}
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
         </IconButton>
       </DialogTitle>
       <DialogContent>
         <MDBox pt={2}>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <MDInput
-                label="Nombres"
-                name="nombres"
-                value={formData.nombres}
-                onChange={handleChange}
-                fullWidth
-                disabled={saving}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <MDInput
-                label="Apellidos"
-                name="apellidos"
-                value={formData.apellidos}
-                onChange={handleChange}
-                fullWidth
-                disabled={saving}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <MDInput
-                type="email"
-                label="Email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                fullWidth
-                disabled={saving}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                select
-                label="Usuario vinculado (opcional)"
-                name="userId"
-                value={formData.userId}
-                onChange={handleChange}
-                fullWidth
-                size="medium"
+          <MDBox mb={2}>
+            <MDInput
+              label="Nombre"
+              name="nombre"
+              value={formData.nombre}
+              onChange={handleChange}
+              fullWidth
+              disabled={saving}
+            />
+          </MDBox>
+          <MDBox mb={2}>
+            <FormControl fullWidth>
+              <InputLabel id="responsabilidades-label">Responsabilidades</InputLabel>
+              <Select
+                labelId="responsabilidades-label"
+                multiple
+                name="responsabilidades"
+                value={formData.responsabilidades}
+                onChange={handleResponsabilidadesChange}
+                input={<OutlinedInput label="Responsabilidades" />}
+                renderValue={(selected) =>
+                  selected
+                    .map(
+                      (id) =>
+                        responsabilidades.find((r) => r.id === id)?.nombre ||
+                        responsabilidades.find((r) => r.id === id)?.name
+                    )
+                    .filter(Boolean)
+                    .join(", ")
+                }
                 disabled={saving}
               >
-                <option value="">
-                  <em>Sin usuario vinculado</em>
-                </option>
-              </TextField>
-            </Grid>
-          </Grid>
+                {responsabilidades.map((r) => (
+                  <MenuItem key={r.id} value={r.id}>
+                    <Checkbox checked={formData.responsabilidades.includes(r.id)} />
+                    <ListItemText primary={r.nombre || r.name} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </MDBox>
           {formError && (
-            <MDTypography variant="body2" color="error" mt={2}>
+            <MDTypography variant="body2" color="error">
               {formError}
             </MDTypography>
           )}
@@ -173,17 +156,17 @@ FormModal.propTypes = {
   onSave: PropTypes.func.isRequired,
   initialData: PropTypes.object,
   saving: PropTypes.bool,
-  usuarios: PropTypes.array.isRequired,
+  responsabilidades: PropTypes.array.isRequired,
   error: PropTypes.string,
 };
 
 function DeleteModal({ open, onClose, onConfirm, nombre, loading }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Confirmar eliminación</DialogTitle>
+      <DialogTitle>Confirmar eliminacion</DialogTitle>
       <DialogContent>
         <MDTypography variant="body2">
-          ¿Estás seguro de eliminar el docente &quot;{nombre}&quot;?
+          Esta seguro de eliminar el rol &quot;{nombre}&quot;?
         </MDTypography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -206,18 +189,23 @@ DeleteModal.propTypes = {
   loading: PropTypes.bool,
 };
 
-function Docentes() {
-  const [docentes, setDocentes] = useState([]);
+function Roles() {
+  const [roles, setRoles] = useState([]);
+  const [responsabilidades, setResponsabilidades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [formModal, setFormModal] = useState({ open: false, data: null, saving: false, error: "" });
   const [deleteModal, setDeleteModal] = useState({ open: false, item: null, loading: false });
 
-  const fetchDocentes = async () => {
+  const fetchData = async () => {
     try {
-      const data = await docenteService.getAll();
-      setDocentes(Array.isArray(data) ? data : []);
+      const [rolesData, responsabilidadesData] = await Promise.all([
+        rolService.getAll(),
+        responsabilidadService.getAll(),
+      ]);
+      setRoles(Array.isArray(rolesData) ? rolesData : []);
+      setResponsabilidades(Array.isArray(responsabilidadesData) ? responsabilidadesData : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -226,7 +214,7 @@ function Docentes() {
   };
 
   useEffect(() => {
-    fetchDocentes();
+    fetchData();
   }, []);
 
   const handleOpenForm = (item = null) => {
@@ -241,12 +229,12 @@ function Docentes() {
     setFormModal((prev) => ({ ...prev, saving: true, error: "" }));
     try {
       if (formModal.data) {
-        await docenteService.update(formModal.data.id, data);
+        await rolService.update(formModal.data.id, data);
       } else {
-        await docenteService.create(data);
+        await rolService.create(data);
       }
       handleCloseForm();
-      fetchDocentes();
+      fetchData();
     } catch (err) {
       setFormModal((prev) => ({ ...prev, saving: false, error: err.message }));
     }
@@ -263,61 +251,46 @@ function Docentes() {
   const handleConfirmDelete = async () => {
     setDeleteModal((prev) => ({ ...prev, loading: true }));
     try {
-      await docenteService.delete(deleteModal.item.id);
+      await rolService.delete(deleteModal.item.id);
       handleCloseDelete();
-      fetchDocentes();
+      fetchData();
     } catch (err) {
       setDeleteModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
-  const columns = [
-    { Header: "Apellidos", accessor: "apellidos", align: "left" },
-    { Header: "Nombres", accessor: "nombres", align: "left" },
-    { Header: "Email", accessor: "email", align: "left" },
-    { Header: "Usuario", accessor: "usuario", align: "left" },
-    { Header: "Materias", accessor: "materias", align: "left" },
-    { Header: "Acciones", accessor: "actions", align: "center" },
-  ];
-
-  const getMateriasDisplay = (docente) => {
-    const lista = docente.materias || [];
-    if (lista.length === 0) {
+  const getResponsabilidadesDisplay = (role) => {
+    const ids = role.responsibilityIds || role.responsabilidades || [];
+    if (!ids || ids.length === 0) {
       return (
         <MDTypography variant="caption" color="text.secondary">
-          Sin materias
+          Sin responsabilidades
         </MDTypography>
       );
     }
-    return lista.map((m) => (
-      <MDTypography key={m.materiaId || Math.random()} variant="caption" display="block">
-        {m.materia} ({m.curso} {m.division}) - {m.rol}
-      </MDTypography>
-    ));
+    return ids.map((id) => {
+      const resp = responsabilidades.find((r) => r.id === id);
+      return (
+        <MDTypography key={id} variant="caption" display="block">
+          {resp?.nombre || resp?.name || "-"}
+        </MDTypography>
+      );
+    });
   };
 
-  const rows = docentes.map((item) => ({
-    apellidos: (
+  const columns = [
+    { Header: "Nombre", accessor: "nombre", align: "left" },
+    { Header: "Responsabilidades", accessor: "responsabilidades", align: "left" },
+    { Header: "Acciones", accessor: "actions", align: "center" },
+  ];
+
+  const rows = roles.map((item) => ({
+    nombre: (
       <MDTypography variant="button" fontWeight="medium">
-        {item.apellidos}
+        {item.nombre || item.name}
       </MDTypography>
     ),
-    nombres: <MDTypography variant="body2">{item.nombres}</MDTypography>,
-    email: (
-      <MDTypography variant="caption" color="text">
-        {item.email}
-      </MDTypography>
-    ),
-    usuario: item.userId ? (
-      <MDTypography variant="caption" color="success">
-        Vinculado
-      </MDTypography>
-    ) : (
-      <MDTypography variant="caption" color="text.secondary">
-        Sin vincular
-      </MDTypography>
-    ),
-    materias: getMateriasDisplay(item),
+    responsabilidades: getResponsabilidadesDisplay(item),
     actions: (
       <MDBox display="flex" gap={1} justifyContent="center">
         <MDButton variant="text" color="dark" size="small" onClick={() => handleOpenForm(item)}>
@@ -351,7 +324,7 @@ function Docentes() {
                 alignItems="center"
               >
                 <MDTypography variant="h6" color="white">
-                  Docentes
+                  Roles
                 </MDTypography>
                 <MDButton
                   variant="outlined"
@@ -359,7 +332,7 @@ function Docentes() {
                   size="small"
                   onClick={() => handleOpenForm()}
                 >
-                  + Nuevo Docente
+                  + Nuevo Rol
                 </MDButton>
               </MDBox>
               <MDBox pt={3} px={2}>
@@ -370,7 +343,7 @@ function Docentes() {
                 ) : error ? (
                   <MDBox py={4} textAlign="center">
                     <MDTypography variant="body1" color="error">
-                      Error al cargar docentes: {error}
+                      Error al cargar roles: {error}
                     </MDTypography>
                   </MDBox>
                 ) : (
@@ -394,20 +367,18 @@ function Docentes() {
         onSave={handleSaveForm}
         initialData={formModal.data}
         saving={formModal.saving}
-        usuarios={[]}
+        responsabilidades={responsabilidades}
         error={formModal.error}
       />
       <DeleteModal
         open={deleteModal.open}
         onClose={handleCloseDelete}
         onConfirm={handleConfirmDelete}
-        nombre={
-          deleteModal.item ? `${deleteModal.item.apellidos}, ${deleteModal.item.nombres}` : ""
-        }
+        nombre={deleteModal.item?.nombre || deleteModal.item?.name}
         loading={deleteModal.loading}
       />
     </DashboardLayout>
   );
 }
 
-export default Docentes;
+export default Roles;

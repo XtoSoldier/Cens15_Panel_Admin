@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import CircularProgress from "@mui/material/CircularProgress";
+import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDInput from "components/MDInput";
@@ -11,6 +13,7 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 import userService from "services/userService";
+import rolService from "services/rolService";
 
 function UserForm() {
   const { id } = useParams();
@@ -20,13 +23,28 @@ function UserForm() {
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [roles, setRoles] = useState([]);
+  const [originalEmail, setOriginalEmail] = useState("");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
+    roleId: "",
     password: "",
     confirmPassword: "",
   });
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const data = await rolService.getAll();
+        setRoles(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Error loading roles:", err);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   useEffect(() => {
     if (!isEditMode) {
@@ -37,10 +55,13 @@ function UserForm() {
     const fetchUser = async () => {
       try {
         const user = await userService.getById(id);
+        const email = user.email || "";
+        setOriginalEmail(email);
         setFormData({
           firstName: user.firstName || "",
           lastName: user.lastName || "",
-          email: user.email || "",
+          email: email,
+          roleId: user.roleId || "",
           password: "",
           confirmPassword: "",
         });
@@ -54,7 +75,8 @@ function UserForm() {
   }, [id, isEditMode]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -89,8 +111,11 @@ function UserForm() {
       const userData = {
         nombres: formData.firstName,
         apellido: formData.lastName,
-        email: formData.email,
       };
+
+      if (formData.roleId) {
+        userData.roleId = formData.roleId;
+      }
 
       if (formData.password) {
         userData.password = formData.password;
@@ -98,7 +123,11 @@ function UserForm() {
 
       if (isEditMode) {
         await userService.update(id, userData);
+        if (formData.email && formData.email !== originalEmail) {
+          await userService.updateEmail(id, formData.email);
+        }
       } else {
+        userData.email = formData.email;
         await userService.create(userData);
       }
       navigate("/usuarios");
@@ -164,19 +193,50 @@ function UserForm() {
                         disabled={saving}
                       />
                     </Grid>
-                    {!isEditMode && (
-                      <Grid item xs={12}>
-                        <MDInput
-                          type="email"
-                          label="Email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          fullWidth
-                          disabled={saving}
-                        />
-                      </Grid>
-                    )}
+                    <Grid item xs={12}>
+                      <TextField
+                        select
+                        label="Rol"
+                        name="roleId"
+                        value={formData.roleId}
+                        onChange={handleChange}
+                        fullWidth
+                        size="medium"
+                        disabled={saving}
+                      >
+                        <MenuItem value="">
+                          <em>Seleccionar rol...</em>
+                        </MenuItem>
+                        {roles.map((r) => (
+                          <MenuItem key={r.id} value={r.id}>
+                            {r.nombre || r.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <MDInput
+                        type="email"
+                        label="Email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        fullWidth
+                        disabled={saving}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <MDInput
+                        type="password"
+                        label="Nueva Contraseña (opcional)"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        fullWidth
+                        disabled={saving}
+                        placeholder="Dejar en blanco para mantener la actual"
+                      />
+                    </Grid>
                     <Grid item xs={12} md={6}>
                       <MDInput
                         type="password"

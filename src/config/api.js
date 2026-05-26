@@ -18,6 +18,7 @@ export const config = {
 const getHeaders = (extraHeaders = {}) => {
   const headers = { "Content-Type": "application/json", ...extraHeaders };
   const token = localStorage.getItem("token");
+  console.log("DEBUG getHeaders token:", token);
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }

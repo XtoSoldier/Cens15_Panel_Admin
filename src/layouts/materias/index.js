@@ -13,7 +13,6 @@ import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
-import Box from "@mui/material/Box";
 import Icon from "@mui/material/Icon";
 
 import MDBox from "components/MDBox";
@@ -49,7 +48,7 @@ function DocentesSection({ docentes, onChange, disabled, allDocentes }) {
     <MDBox>
       <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
         <MDTypography variant="caption" color="text.secondary">
-          Docentes ({allDocentes.length} disponibles)
+          Docentes ({docentes.length} asignados, {allDocentes.length} disponibles)
         </MDTypography>
         <MDButton variant="outlined" size="small" onClick={handleAdd} disabled={disabled}>
           + Agregar Docente
@@ -133,13 +132,17 @@ function FormModal({
 
   useEffect(() => {
     if (initialData) {
+      console.log("DEBUG initialData.docentes:", initialData.docentes);
       setFormData({
         nombre: initialData.nombre || "",
         cursoId: initialData.cursoId || "",
-        docentes: (initialData.docentes || []).map((d) => ({
-          docenteId: d.docenteId || d.docente?.id || "",
-          rol: d.rol || d.rolDocente || "",
-        })),
+        docentes: (initialData.docentes || []).map((d) => {
+          const id = d.docenteId || d.docente?.id || d.id || "";
+          return {
+            docenteId: id,
+            rol: d.rol || d.rolDocente || "",
+          };
+        }),
       });
     } else {
       setFormData({ nombre: "", cursoId: "", docentes: [] });
@@ -234,7 +237,7 @@ function FormModal({
                   const orientacion = orientaciones.find((o) => o.id === orientacionId);
                   return (
                     <MenuItem key={c.id} value={c.id}>
-                      {c.curso}° {c.division} - {orientacion?.nombre || "Sin orientación"} -{" "}
+                      {c.curso} {c.division} - {orientacion?.nombre || "Sin orientación"} -{" "}
                       {c.anexo?.nombre || ""}
                     </MenuItem>
                   );
@@ -401,7 +404,7 @@ function Materias() {
     if (!curso) return "-";
     const orientacionId = curso.id_orientacion || curso.orientacion?.id;
     const orientacion = orientaciones.find((o) => o.id === orientacionId);
-    return `${curso.curso}° ${curso.division} - ${
+    return `${curso.curso} ${curso.division} - ${
       orientacion?.nombreCorto || orientacion?.nombre || ""
     }`;
   };

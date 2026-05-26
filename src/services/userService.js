@@ -9,6 +9,8 @@ export const userService = {
 
   update: (id, userData) => api.put(`/Users/${id}`, userData),
 
+  updateEmail: (id, email) => api.patch(`/Users/${id}/email`, { email }),
+
   updateStatus: (id, status) => api.patch(`/Users/${id}/status`, { status }),
 
   delete: (id) => api.delete(`/Users/${id}`),

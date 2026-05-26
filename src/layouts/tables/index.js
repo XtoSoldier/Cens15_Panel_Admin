@@ -113,7 +113,6 @@ function Tables() {
 
   const columns = [
     { Header: "Nombre", accessor: "name", align: "left" },
-    { Header: "Email", accessor: "email", align: "left" },
     { Header: "Rol", accessor: "role", align: "center" },
     { Header: "Estado", accessor: "status", align: "center" },
     { Header: "Acciones", accessor: "actions", align: "center" },
@@ -126,7 +125,6 @@ function Tables() {
         email={user.email || "-"}
       />
     ),
-    email: user.email || "-",
     role: (
       <MDTypography component="span" variant="caption" color="text">
         {user.role || "-"}

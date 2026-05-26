@@ -1,6 +1,6 @@
 /**
 =========================================================
-* Material Dashboard 2 React - v2.2.0
+* Material  2 React - v2.2.0
 =========================================================
 
 * Product Page: https://www.creative-tim.com/product/material-dashboard-react
@@ -30,7 +30,7 @@ import LoginModal from "components/LoginModal";
 import { LoginModalProvider } from "context/LoginModalContext";
 import ProtectedRoute from "components/ProtectedRoute";
 
-// Material Dashboard 2 React themes
+// Material  2 React themes
 import theme from "assets/theme";
 import themeRTL from "assets/theme/theme-rtl";
 
@@ -43,7 +43,7 @@ import rtlPlugin from "stylis-plugin-rtl";
 import { CacheProvider } from "@emotion/react";
 import createCache from "@emotion/cache";
 
-// Material Dashboard 2 React routes
+// Material  2 React routes
 import routes from "routes";
 
 // Material Dashboard 2 React contexts
@@ -176,6 +176,7 @@ export default function App() {
             </>
           )}
           <Routes>
+            <Route path="/" element={<Navigate to="/home" replace />} />
             {getRoutes(routes)}
             <Route path="/usuarios/nuevo" element={<UserForm />} />
             <Route path="/usuarios/editar/:id" element={<UserForm />} />
@@ -196,6 +197,7 @@ export default function App() {
           </>
         )}
         <Routes>
+          <Route path="/" element={<Navigate to="/home" replace />} />
           {getRoutes(routes)}
           <Route path="/usuarios/nuevo" element={<UserForm />} />
           <Route path="/usuarios/editar/:id" element={<UserForm />} />

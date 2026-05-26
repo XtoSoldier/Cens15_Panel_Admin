@@ -38,6 +38,8 @@ Coded by www.creative-tim.com
 // Material Dashboard 2 React layouts
 import Home from "layouts/home";
 import Tables from "layouts/tables";
+import Roles from "layouts/roles";
+import Responsabilidades from "layouts/responsabilidades";
 import Orientaciones from "layouts/orientaciones";
 import Anexos from "layouts/anexos";
 import Cursos from "layouts/cursos";
@@ -64,6 +66,22 @@ const routes = [
     icon: <Icon fontSize="small">group_icon</Icon>,
     route: "/usuarios",
     component: <Tables />,
+  },
+  {
+    type: "collapse",
+    name: "Roles",
+    key: "roles",
+    icon: <Icon fontSize="small">admin_panel_settings_icon</Icon>,
+    route: "/roles",
+    component: <Roles />,
+  },
+  {
+    type: "collapse",
+    name: "Responsabilidades",
+    key: "responsabilidades",
+    icon: <Icon fontSize="small">assignment_icon</Icon>,
+    route: "/responsabilidades",
+    component: <Responsabilidades />,
   },
   {
     type: "collapse",

@@ -11,7 +11,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
-import TextField from "@mui/material/TextField";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -24,28 +23,20 @@ import Footer from "examples/Footer";
 import DataTable from "examples/Tables/DataTable";
 
 import Icon from "@mui/material/Icon";
-import docenteService from "services/docenteService";
-import userService from "services/userService";
+import responsabilidadService from "services/responsabilidadService";
 
-function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error }) {
-  const [formData, setFormData] = useState({
-    nombres: "",
-    apellidos: "",
-    email: "",
-    userId: "",
-  });
+function FormModal({ open, onClose, onSave, initialData, saving, error }) {
+  const [formData, setFormData] = useState({ nombre: "", descripcion: "" });
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
     if (initialData) {
       setFormData({
-        nombres: initialData.nombres || "",
-        apellidos: initialData.apellidos || "",
-        email: initialData.email || "",
-        userId: initialData.userId || "",
+        nombre: initialData.nombre || initialData.name || "",
+        descripcion: initialData.descripcion || initialData.description || "",
       });
     } else {
-      setFormData({ nombres: "", apellidos: "", email: "", userId: "" });
+      setFormData({ nombre: "", descripcion: "" });
     }
     setFormError("");
   }, [initialData, open]);
@@ -62,94 +53,48 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
   };
 
   const handleSubmit = () => {
-    if (!formData.nombres.trim()) {
-      setFormError("El nombre del docente es obligatorio.");
-      return;
-    }
-    if (!formData.apellidos.trim()) {
-      setFormError("El apellido del docente es obligatorio.");
-      return;
-    }
-    if (!formData.email.trim()) {
-      setFormError("El email del docente es obligatorio.");
+    if (!formData.nombre.trim()) {
+      setFormError("El nombre de la responsabilidad es obligatorio.");
       return;
     }
     setFormError("");
-
-    const payload = {
-      nombres: formData.nombres.trim(),
-      apellidos: formData.apellidos.trim(),
-      email: formData.email.trim(),
-    };
-
-    if (formData.userId) {
-      payload.userId = formData.userId;
-    }
-
-    onSave(payload);
+    onSave({ name: formData.nombre, description: formData.descripcion });
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        {initialData ? "Editar Docente" : "Nuevo Docente"}
+        {initialData ? "Editar Responsabilidad" : "Nueva Responsabilidad"}
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
         </IconButton>
       </DialogTitle>
       <DialogContent>
         <MDBox pt={2}>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <MDInput
-                label="Nombres"
-                name="nombres"
-                value={formData.nombres}
-                onChange={handleChange}
-                fullWidth
-                disabled={saving}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <MDInput
-                label="Apellidos"
-                name="apellidos"
-                value={formData.apellidos}
-                onChange={handleChange}
-                fullWidth
-                disabled={saving}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <MDInput
-                type="email"
-                label="Email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                fullWidth
-                disabled={saving}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                select
-                label="Usuario vinculado (opcional)"
-                name="userId"
-                value={formData.userId}
-                onChange={handleChange}
-                fullWidth
-                size="medium"
-                disabled={saving}
-              >
-                <option value="">
-                  <em>Sin usuario vinculado</em>
-                </option>
-              </TextField>
-            </Grid>
-          </Grid>
+          <MDBox mb={2}>
+            <MDInput
+              label="Nombre"
+              name="nombre"
+              value={formData.nombre}
+              onChange={handleChange}
+              fullWidth
+              disabled={saving}
+            />
+          </MDBox>
+          <MDBox mb={2}>
+            <MDInput
+              label="Descripcion"
+              name="descripcion"
+              value={formData.descripcion}
+              onChange={handleChange}
+              fullWidth
+              disabled={saving}
+              multiline
+              rows={2}
+            />
+          </MDBox>
           {formError && (
-            <MDTypography variant="body2" color="error" mt={2}>
+            <MDTypography variant="body2" color="error">
               {formError}
             </MDTypography>
           )}
@@ -173,17 +118,16 @@ FormModal.propTypes = {
   onSave: PropTypes.func.isRequired,
   initialData: PropTypes.object,
   saving: PropTypes.bool,
-  usuarios: PropTypes.array.isRequired,
   error: PropTypes.string,
 };
 
 function DeleteModal({ open, onClose, onConfirm, nombre, loading }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Confirmar eliminación</DialogTitle>
+      <DialogTitle>Confirmar eliminacion</DialogTitle>
       <DialogContent>
         <MDTypography variant="body2">
-          ¿Estás seguro de eliminar el docente &quot;{nombre}&quot;?
+          Esta seguro de eliminar la responsabilidad &quot;{nombre}&quot;?
         </MDTypography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -206,18 +150,18 @@ DeleteModal.propTypes = {
   loading: PropTypes.bool,
 };
 
-function Docentes() {
-  const [docentes, setDocentes] = useState([]);
+function Responsabilidades() {
+  const [responsabilidades, setResponsabilidades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [formModal, setFormModal] = useState({ open: false, data: null, saving: false, error: "" });
   const [deleteModal, setDeleteModal] = useState({ open: false, item: null, loading: false });
 
-  const fetchDocentes = async () => {
+  const fetchResponsabilidades = async () => {
     try {
-      const data = await docenteService.getAll();
-      setDocentes(Array.isArray(data) ? data : []);
+      const data = await responsabilidadService.getAll();
+      setResponsabilidades(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -226,7 +170,7 @@ function Docentes() {
   };
 
   useEffect(() => {
-    fetchDocentes();
+    fetchResponsabilidades();
   }, []);
 
   const handleOpenForm = (item = null) => {
@@ -241,12 +185,12 @@ function Docentes() {
     setFormModal((prev) => ({ ...prev, saving: true, error: "" }));
     try {
       if (formModal.data) {
-        await docenteService.update(formModal.data.id, data);
+        await responsabilidadService.update(formModal.data.id, data);
       } else {
-        await docenteService.create(data);
+        await responsabilidadService.create(data);
       }
       handleCloseForm();
-      fetchDocentes();
+      fetchResponsabilidades();
     } catch (err) {
       setFormModal((prev) => ({ ...prev, saving: false, error: err.message }));
     }
@@ -263,61 +207,31 @@ function Docentes() {
   const handleConfirmDelete = async () => {
     setDeleteModal((prev) => ({ ...prev, loading: true }));
     try {
-      await docenteService.delete(deleteModal.item.id);
+      await responsabilidadService.delete(deleteModal.item.id);
       handleCloseDelete();
-      fetchDocentes();
+      fetchResponsabilidades();
     } catch (err) {
       setDeleteModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
   const columns = [
-    { Header: "Apellidos", accessor: "apellidos", align: "left" },
-    { Header: "Nombres", accessor: "nombres", align: "left" },
-    { Header: "Email", accessor: "email", align: "left" },
-    { Header: "Usuario", accessor: "usuario", align: "left" },
-    { Header: "Materias", accessor: "materias", align: "left" },
+    { Header: "Nombre", accessor: "nombre", align: "left" },
+    { Header: "Descripcion", accessor: "descripcion", align: "left" },
     { Header: "Acciones", accessor: "actions", align: "center" },
   ];
 
-  const getMateriasDisplay = (docente) => {
-    const lista = docente.materias || [];
-    if (lista.length === 0) {
-      return (
-        <MDTypography variant="caption" color="text.secondary">
-          Sin materias
-        </MDTypography>
-      );
-    }
-    return lista.map((m) => (
-      <MDTypography key={m.materiaId || Math.random()} variant="caption" display="block">
-        {m.materia} ({m.curso} {m.division}) - {m.rol}
-      </MDTypography>
-    ));
-  };
-
-  const rows = docentes.map((item) => ({
-    apellidos: (
+  const rows = responsabilidades.map((item) => ({
+    nombre: (
       <MDTypography variant="button" fontWeight="medium">
-        {item.apellidos}
+        {item.nombre || item.name}
       </MDTypography>
     ),
-    nombres: <MDTypography variant="body2">{item.nombres}</MDTypography>,
-    email: (
+    descripcion: (
       <MDTypography variant="caption" color="text">
-        {item.email}
+        {item.descripcion || item.description || "-"}
       </MDTypography>
     ),
-    usuario: item.userId ? (
-      <MDTypography variant="caption" color="success">
-        Vinculado
-      </MDTypography>
-    ) : (
-      <MDTypography variant="caption" color="text.secondary">
-        Sin vincular
-      </MDTypography>
-    ),
-    materias: getMateriasDisplay(item),
     actions: (
       <MDBox display="flex" gap={1} justifyContent="center">
         <MDButton variant="text" color="dark" size="small" onClick={() => handleOpenForm(item)}>
@@ -351,7 +265,7 @@ function Docentes() {
                 alignItems="center"
               >
                 <MDTypography variant="h6" color="white">
-                  Docentes
+                  Responsabilidades
                 </MDTypography>
                 <MDButton
                   variant="outlined"
@@ -359,7 +273,7 @@ function Docentes() {
                   size="small"
                   onClick={() => handleOpenForm()}
                 >
-                  + Nuevo Docente
+                  + Nueva Responsabilidad
                 </MDButton>
               </MDBox>
               <MDBox pt={3} px={2}>
@@ -370,7 +284,7 @@ function Docentes() {
                 ) : error ? (
                   <MDBox py={4} textAlign="center">
                     <MDTypography variant="body1" color="error">
-                      Error al cargar docentes: {error}
+                      Error al cargar responsabilidades: {error}
                     </MDTypography>
                   </MDBox>
                 ) : (
@@ -394,20 +308,17 @@ function Docentes() {
         onSave={handleSaveForm}
         initialData={formModal.data}
         saving={formModal.saving}
-        usuarios={[]}
         error={formModal.error}
       />
       <DeleteModal
         open={deleteModal.open}
         onClose={handleCloseDelete}
         onConfirm={handleConfirmDelete}
-        nombre={
-          deleteModal.item ? `${deleteModal.item.apellidos}, ${deleteModal.item.nombres}` : ""
-        }
+        nombre={deleteModal.item?.nombre || deleteModal.item?.name}
         loading={deleteModal.loading}
       />
     </DashboardLayout>
   );
 }
 
-export default Docentes;
+export default Responsabilidades;

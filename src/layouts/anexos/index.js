@@ -177,7 +177,7 @@ function CoursesModal({ open, onClose, anexo, cursos, orientaciones }) {
               >
                 <MDBox display="flex" alignItems="center" gap={2}>
                   <MDTypography variant="button" fontWeight="bold">
-                    {curso.curso}° {curso.division}
+                    {curso.curso} {curso.division}
                   </MDTypography>
                   <MDTypography variant="caption" color="text.secondary">
                     {getOrientacionNombre(curso.id_orientacion || curso.orientacion?.id)}
