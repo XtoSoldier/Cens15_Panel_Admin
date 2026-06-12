@@ -137,7 +137,7 @@ function Tables() {
           variant="text"
           color="dark"
           size="small"
-          onClick={() => navigate(`/usuarios/editar/${user.id}`)}
+          onClick={() => navigate(`/usuarios/editar/${user.id}`, { state: { user } })}
         >
           <Icon>edit</Icon>
         </MDButton>

@@ -45,6 +45,7 @@ import Anexos from "layouts/anexos";
 import Cursos from "layouts/cursos";
 import Materias from "layouts/materias";
 import Docentes from "layouts/docentes";
+import Certificados from "layouts/certificados";
 import Notifications from "layouts/notifications";
 
 // @mui icons
@@ -122,6 +123,14 @@ const routes = [
     icon: <Icon fontSize="small">badge_icon</Icon>,
     route: "/docentes",
     component: <Docentes />,
+  },
+  {
+    type: "collapse",
+    name: "Certificados",
+    key: "certificados",
+    icon: <Icon fontSize="small">description</Icon>,
+    route: "/certificados",
+    component: <Certificados />,
   },
 ];
 

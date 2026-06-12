@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -17,6 +17,7 @@ import rolService from "services/rolService";
 
 function UserForm() {
   const { id } = useParams();
+  const { state } = useLocation();
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
 
@@ -33,6 +34,32 @@ function UserForm() {
     password: "",
     confirmPassword: "",
   });
+
+  const findRoleIdByName = (roleName) => {
+    if (!roleName) return "";
+    const normalizedRoleName = roleName.toLowerCase();
+    return (
+      roles.find((role) => (role.name || role.nombre || "").toLowerCase() === normalizedRoleName)
+        ?.id || ""
+    );
+  };
+
+  const applyUserData = (userResponse) => {
+    const user = userResponse?.user || userResponse?.data || userResponse || {};
+    const email = user.email || user.Email || user.auth?.email || user.Auth?.Email || "";
+    const roleName =
+      typeof user.role === "string" ? user.role : user.role?.name || user.role?.nombre;
+
+    setOriginalEmail(email);
+    setFormData({
+      firstName: user.firstName || user.FirstName || user.nombres || "",
+      lastName: user.lastName || user.LastName || user.apellido || user.apellidos || "",
+      email: email,
+      roleId: user.roleId || user.RoleId || user.role?.id || findRoleIdByName(roleName),
+      password: "",
+      confirmPassword: "",
+    });
+  };
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -52,19 +79,14 @@ function UserForm() {
       return;
     }
 
+    if (state?.user) {
+      applyUserData(state.user);
+    }
+
     const fetchUser = async () => {
       try {
         const user = await userService.getById(id);
-        const email = user.email || "";
-        setOriginalEmail(email);
-        setFormData({
-          firstName: user.firstName || "",
-          lastName: user.lastName || "",
-          email: email,
-          roleId: user.roleId || "",
-          password: "",
-          confirmPassword: "",
-        });
+        applyUserData(user);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -72,7 +94,7 @@ function UserForm() {
       }
     };
     fetchUser();
-  }, [id, isEditMode]);
+  }, [id, isEditMode, roles, state]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -240,18 +262,7 @@ function UserForm() {
                     <Grid item xs={12} md={6}>
                       <MDInput
                         type="password"
-                        label="Contraseña"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        fullWidth
-                        disabled={saving}
-                      />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                      <MDInput
-                        type="password"
-                        label="Confirmar Contraseña"
+                        label="Confirmar Nueva Contraseña"
                         name="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleChange}
