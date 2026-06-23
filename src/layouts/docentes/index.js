@@ -12,6 +12,7 @@ import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -59,6 +60,34 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const getUserLabel = (user) => {
+    const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+    return [fullName || "Usuario sin nombre", user.email].filter(Boolean).join(" - ");
+  };
+
+  const handleUserChange = (e) => {
+    const { value } = e.target;
+    const selectedUser = usuarios.find((user) => user.id === value);
+
+    if (!selectedUser) {
+      setFormData((prev) => ({ ...prev, userId: "" }));
+      return;
+    }
+
+    if (initialData && value !== initialData.userId) {
+      const ok = window.confirm("Se reemplazará nombre y apellido por el del usuario.");
+      if (!ok) return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      userId: value,
+      nombres: selectedUser.firstName || "",
+      apellidos: selectedUser.lastName || "",
+      email: selectedUser.email || prev.email,
+    }));
   };
 
   const handleSubmit = () => {
@@ -137,15 +166,24 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
                 label="Usuario vinculado (opcional)"
                 name="userId"
                 value={formData.userId}
-                onChange={handleChange}
+                onChange={handleUserChange}
                 fullWidth
                 size="medium"
                 disabled={saving}
+                SelectProps={{ native: false }}
               >
-                <option value="">
+                <MenuItem value="">
                   <em>Sin usuario vinculado</em>
-                </option>
+                </MenuItem>
+                {usuarios.map((user) => (
+                  <MenuItem key={user.id} value={user.id}>
+                    {getUserLabel(user)}
+                  </MenuItem>
+                ))}
               </TextField>
+              <MDTypography variant="caption" color="text.secondary" mt={1} display="block">
+                Solo se muestran usuarios disponibles o el usuario ya vinculado a este docente.
+              </MDTypography>
             </Grid>
           </Grid>
           {formError && (
@@ -208,6 +246,7 @@ DeleteModal.propTypes = {
 
 function Docentes() {
   const [docentes, setDocentes] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -216,8 +255,9 @@ function Docentes() {
 
   const fetchDocentes = async () => {
     try {
-      const data = await docenteService.getAll();
+      const [data, usersData] = await Promise.all([docenteService.getAll(), userService.getAll()]);
       setDocentes(Array.isArray(data) ? data : []);
+      setUsuarios(Array.isArray(usersData) ? usersData : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -231,6 +271,17 @@ function Docentes() {
 
   const handleOpenForm = (item = null) => {
     setFormModal({ open: true, data: item, saving: false, error: "" });
+  };
+
+  const getUsuariosDisponibles = () => {
+    const currentUserId = formModal.data?.userId || "";
+    const usedUserIds = new Set(
+      docentes
+        .filter((docente) => docente.userId && docente.userId !== currentUserId)
+        .map((docente) => docente.userId)
+    );
+
+    return usuarios.filter((user) => !usedUserIds.has(user.id));
   };
 
   const handleCloseForm = () => {
@@ -394,7 +445,7 @@ function Docentes() {
         onSave={handleSaveForm}
         initialData={formModal.data}
         saving={formModal.saving}
-        usuarios={[]}
+        usuarios={getUsuariosDisponibles()}
         error={formModal.error}
       />
       <DeleteModal

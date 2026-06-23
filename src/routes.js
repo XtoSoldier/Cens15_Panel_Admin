@@ -46,6 +46,7 @@ import Cursos from "layouts/cursos";
 import Materias from "layouts/materias";
 import Docentes from "layouts/docentes";
 import Certificados from "layouts/certificados";
+import LoginActivities from "layouts/loginActivities";
 import Notifications from "layouts/notifications";
 
 // @mui icons
@@ -131,6 +132,14 @@ const routes = [
     icon: <Icon fontSize="small">description</Icon>,
     route: "/certificados",
     component: <Certificados />,
+  },
+  {
+    type: "collapse",
+    name: "Actividad Logueo",
+    key: "login-activities",
+    icon: <Icon fontSize="small">manage_search</Icon>,
+    route: "/actividad-logueo",
+    component: <LoginActivities />,
   },
 ];
 

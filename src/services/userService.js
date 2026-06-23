@@ -7,6 +7,8 @@ export const userService = {
 
   create: (userData) => api.post("/auth/register", userData),
 
+  requestInitialAccess: (email) => api.post("/auth/request-initial-access", { email }),
+
   update: (id, userData) => api.put(`/Users/${id}`, userData),
 
   updateEmail: (id, email) => api.patch(`/Users/${id}/email`, { email }),

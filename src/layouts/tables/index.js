@@ -111,6 +111,19 @@ function Tables() {
     }
   };
 
+  const handleResendInitialAccess = async (user) => {
+    if (!user.email) {
+      alert("El usuario no tiene email cargado.");
+      return;
+    }
+    try {
+      await userService.requestInitialAccess(user.email);
+      alert(`Se envió el correo de acceso inicial a ${user.email}.`);
+    } catch (err) {
+      alert("Error al enviar correo: " + err.message);
+    }
+  };
+
   const columns = [
     { Header: "Nombre", accessor: "name", align: "left" },
     { Header: "Rol", accessor: "role", align: "center" },
@@ -118,35 +131,43 @@ function Tables() {
     { Header: "Acciones", accessor: "actions", align: "center" },
   ];
 
-  const rows = users.map((user) => ({
-    name: (
-      <UserCell
-        name={`${user.firstName || ""} ${user.lastName || ""}`.trim()}
-        email={user.email || "-"}
-      />
-    ),
-    role: (
-      <MDTypography component="span" variant="caption" color="text">
-        {user.role || "-"}
-      </MDTypography>
-    ),
-    status: <StatusCell status={user.status} onClick={() => handleStatusToggle(user)} />,
-    actions: (
-      <MDBox display="flex" gap={1} justifyContent="center">
-        <MDButton
-          variant="text"
-          color="dark"
-          size="small"
-          onClick={() => navigate(`/usuarios/editar/${user.id}`, { state: { user } })}
-        >
-          <Icon>edit</Icon>
-        </MDButton>
-        <MDButton variant="text" color="error" size="small" onClick={() => handleDelete(user)}>
-          <Icon>delete</Icon>
-        </MDButton>
-      </MDBox>
-    ),
-  }));
+  const rows = users.map((user) => {
+    const firstName = user.firstName || user.FirstName || user.nombres || "";
+    const lastName = user.lastName || user.LastName || user.apellido || user.apellidos || "";
+
+    return {
+      name: <UserCell name={`${firstName} ${lastName}`.trim() || "-"} email={user.email || "-"} />,
+      role: (
+        <MDTypography component="span" variant="caption" color="text">
+          {user.role || "-"}
+        </MDTypography>
+      ),
+      status: <StatusCell status={user.status} onClick={() => handleStatusToggle(user)} />,
+      actions: (
+        <MDBox display="flex" gap={1} justifyContent="center">
+          <MDButton
+            variant="text"
+            color="dark"
+            size="small"
+            onClick={() => navigate(`/usuarios/editar/${user.id}`, { state: { user } })}
+          >
+            <Icon>edit</Icon>
+          </MDButton>
+          <MDButton
+            variant="text"
+            color="info"
+            size="small"
+            onClick={() => handleResendInitialAccess(user)}
+          >
+            <Icon>mail</Icon>
+          </MDButton>
+          <MDButton variant="text" color="error" size="small" onClick={() => handleDelete(user)}>
+            <Icon>delete</Icon>
+          </MDButton>
+        </MDBox>
+      ),
+    };
+  });
 
   return (
     <DashboardLayout>

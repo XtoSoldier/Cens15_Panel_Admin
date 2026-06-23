@@ -14,6 +14,11 @@ import CloseIcon from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Icon from "@mui/material/Icon";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Divider from "@mui/material/Divider";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Radio from "@mui/material/Radio";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -29,20 +34,52 @@ import cursoService from "services/cursoService";
 import orientacionService from "services/orientacionService";
 import docenteService from "services/docenteService";
 
+const DOCENTE_ROLES = ["Titular", "Suplente"];
+
+const normalizeDocenteRol = (rol) =>
+  DOCENTE_ROLES.find(
+    (docenteRol) => docenteRol.toLowerCase() === String(rol || "").toLowerCase()
+  ) ||
+  rol ||
+  "";
+
 function DocentesSection({ docentes, onChange, disabled, allDocentes }) {
   const handleChange = (index, field, value) => {
     const updated = [...docentes];
     updated[index] = { ...updated[index], [field]: value };
+    if (field === "activo" && value) {
+      updated.forEach((docente, docenteIndex) => {
+        if (docenteIndex !== index) {
+          docente.activo = false;
+        }
+      });
+    }
     onChange(updated);
   };
 
   const handleAdd = () => {
-    onChange([...docentes, { docenteId: "", rol: "" }]);
+    const usedRoles = docentes.map((d) => normalizeDocenteRol(d.rol)).filter(Boolean);
+    const nextRol = DOCENTE_ROLES.find((rol) => !usedRoles.includes(rol)) || "";
+    onChange([...docentes, { docenteId: "", rol: nextRol, activo: docentes.length === 0 }]);
   };
 
   const handleRemove = (index) => {
-    onChange(docentes.filter((_, i) => i !== index));
+    const docente = docentes[index];
+    const hasDocente = Boolean(docente?.docenteId);
+    if (hasDocente && !window.confirm("¿Estás seguro de quitar este docente de la materia?")) {
+      return;
+    }
+
+    const updated = docentes.filter((_, i) => i !== index);
+    if (updated.length > 0 && !updated.some((d) => d.activo)) {
+      updated[0] = { ...updated[0], activo: true };
+    }
+    onChange(updated);
   };
+
+  const usedRoles = docentes.map((d) => normalizeDocenteRol(d.rol)).filter(Boolean);
+  const nextRol = DOCENTE_ROLES.find((rol) => !usedRoles.includes(rol));
+  const canAddDocente = !disabled && docentes.length < DOCENTE_ROLES.length && Boolean(nextRol);
 
   return (
     <MDBox>
@@ -50,9 +87,6 @@ function DocentesSection({ docentes, onChange, disabled, allDocentes }) {
         <MDTypography variant="caption" color="text.secondary">
           Docentes ({docentes.length} asignados, {allDocentes.length} disponibles)
         </MDTypography>
-        <MDButton variant="outlined" size="small" onClick={handleAdd} disabled={disabled}>
-          + Agregar Docente
-        </MDButton>
       </MDBox>
       {docentes.length === 0 && (
         <MDTypography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
@@ -61,7 +95,7 @@ function DocentesSection({ docentes, onChange, disabled, allDocentes }) {
       )}
       {docentes.map((docente, index) => (
         <Grid container spacing={1} key={index} alignItems="center" mb={1}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={5}>
             <TextField
               select
               label="Docente"
@@ -81,15 +115,41 @@ function DocentesSection({ docentes, onChange, disabled, allDocentes }) {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <TextField
+              select
               label="Rol"
               value={docente.rol}
               onChange={(e) => handleChange(index, "rol", e.target.value)}
               fullWidth
               size="small"
               disabled={disabled}
-              placeholder="Ej: Titular, Suplente"
+            >
+              <MenuItem value="">
+                <em>Seleccionar...</em>
+              </MenuItem>
+              {DOCENTE_ROLES.map((rol) => {
+                const usedByAnother = docentes.some(
+                  (d, i) => i !== index && normalizeDocenteRol(d.rol) === rol
+                );
+                return (
+                  <MenuItem key={rol} value={rol} disabled={usedByAnother}>
+                    {rol}
+                  </MenuItem>
+                );
+              })}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} md={2} sx={{ display: "flex", justifyContent: "center" }}>
+            <FormControlLabel
+              control={
+                <Radio
+                  checked={Boolean(docente.activo)}
+                  onChange={() => handleChange(index, "activo", true)}
+                  disabled={disabled}
+                />
+              }
+              label="Activo"
             />
           </Grid>
           <Grid item xs={12} md={2} sx={{ display: "flex", justifyContent: "center" }}>
@@ -105,6 +165,19 @@ function DocentesSection({ docentes, onChange, disabled, allDocentes }) {
           </Grid>
         </Grid>
       ))}
+      {canAddDocente ? (
+        <MDBox mt={1.5}>
+          <MDButton variant="outlined" color="info" size="small" onClick={handleAdd} fullWidth>
+            + Agregar docente {nextRol.toLowerCase()}
+          </MDButton>
+        </MDBox>
+      ) : (
+        docentes.length >= DOCENTE_ROLES.length && (
+          <MDTypography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+            Ya está asignado un docente titular y un docente suplente.
+          </MDTypography>
+        )
+      )}
     </MDBox>
   );
 }
@@ -132,17 +205,21 @@ function FormModal({
 
   useEffect(() => {
     if (initialData) {
-      console.log("DEBUG initialData.docentes:", initialData.docentes);
+      const initialDocentes = (initialData.docentes || []).map((d) => {
+        const id = d.docenteId || d.docente?.id || d.id || "";
+        return {
+          docenteId: id,
+          rol: normalizeDocenteRol(d.rol || d.rolDocente),
+          activo: Boolean(d.activo ?? d.Activo),
+        };
+      });
+      if (initialDocentes.length > 0 && !initialDocentes.some((d) => d.activo)) {
+        initialDocentes[0].activo = true;
+      }
       setFormData({
         nombre: initialData.nombre || "",
         cursoId: initialData.cursoId || "",
-        docentes: (initialData.docentes || []).map((d) => {
-          const id = d.docenteId || d.docente?.id || d.id || "";
-          return {
-            docenteId: id,
-            rol: d.rol || d.rolDocente || "",
-          };
-        }),
+        docentes: initialDocentes,
       });
     } else {
       setFormData({ nombre: "", cursoId: "", docentes: [] });
@@ -176,11 +253,26 @@ function FormModal({
       cursoId: formData.cursoId,
     };
 
+    if (formData.docentes.length > DOCENTE_ROLES.length) {
+      setFormError("Solo se puede asignar un docente titular y un docente suplente.");
+      return;
+    }
+
     const docentesValidos = formData.docentes.filter((d) => d.docenteId && d.rol.trim());
+    const roles = docentesValidos.map((d) => d.rol);
+    if (new Set(roles).size !== roles.length) {
+      setFormError("No se puede repetir el rol dentro de una misma materia.");
+      return;
+    }
+    if (docentesValidos.length > 0 && docentesValidos.filter((d) => d.activo).length !== 1) {
+      setFormError("Debe quedar exactamente un docente activo por materia.");
+      return;
+    }
     if (docentesValidos.length > 0) {
       payload.docentes = docentesValidos.map((d) => ({
         docenteId: d.docenteId,
         rol: d.rol.trim(),
+        activo: Boolean(d.activo),
       }));
     }
 
@@ -329,6 +421,7 @@ function Materias() {
   const [docentes, setDocentes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState("listado");
 
   const [formModal, setFormModal] = useState({ open: false, data: null, saving: false, error: "" });
   const [deleteModal, setDeleteModal] = useState({ open: false, item: null, loading: false });
@@ -409,6 +502,19 @@ function Materias() {
     }`;
   };
 
+  const getCursoNombreByCurso = (curso) => {
+    const orientacionId = curso.id_orientacion || curso.orientacion?.id || curso.orientacionId;
+    const orientacion = orientaciones.find((o) => o.id === orientacionId);
+    const anexo = curso.anexo?.nombre || curso.anexoNombre || curso.AnexoNombre || "";
+    return [
+      `${curso.curso || curso.Curso || ""} ${curso.division || curso.Division || ""}`.trim(),
+      orientacion?.nombreCorto || orientacion?.nombre,
+      anexo,
+    ]
+      .filter(Boolean)
+      .join(" - ");
+  };
+
   const getDocentesDisplay = (materia) => {
     const docenteList = materia.docentes || [];
     if (docenteList.length === 0)
@@ -420,11 +526,13 @@ function Materias() {
     return docenteList.map((d) => {
       const nombre = d.docente?.nombre || d.docente?.firstName || d.docente?.first_name || "";
       const apellido = d.docente?.apellido || d.docente?.lastName || d.docente?.last_name || "";
-      const nombreCompleto = `${nombre} ${apellido}`.trim() || `Docente ${d.docenteId}`;
+      const nombreCompleto =
+        `${nombre} ${apellido}`.trim() || d.docente || d.Docente || `Docente ${d.docenteId}`;
       const rol = d.rol || d.rolDocente || "";
+      const activo = Boolean(d.activo ?? d.Activo);
       return (
-        <MDTypography key={d.docenteId || Math.random()} variant="caption" display="block">
-          {nombreCompleto} {rol && `(${rol})`}
+        <MDTypography key={`${d.docenteId}-${rol}`} variant="caption" display="block">
+          {nombreCompleto} {rol && `(${rol}${activo ? " activo" : ""})`}
         </MDTypography>
       );
     });
@@ -460,6 +568,20 @@ function Materias() {
       </MDBox>
     ),
   }));
+
+  const materiasPorCurso = cursos
+    .map((curso) => {
+      const cursoMaterias = materias
+        .filter((materia) => (materia.cursoId || materia.curso?.id) === curso.id)
+        .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+
+      return {
+        curso,
+        materias: cursoMaterias,
+      };
+    })
+    .filter((grupo) => grupo.materias.length > 0)
+    .sort((a, b) => getCursoNombreByCurso(a.curso).localeCompare(getCursoNombreByCurso(b.curso)));
 
   return (
     <DashboardLayout>
@@ -505,13 +627,98 @@ function Materias() {
                     </MDTypography>
                   </MDBox>
                 ) : (
-                  <DataTable
-                    table={{ columns, rows }}
-                    isSorted={false}
-                    entriesPerPage={{ defaultValue: 10 }}
-                    showTotalEntries
-                    noEndBorder
-                  />
+                  <>
+                    <MDBox display="flex" justifyContent="center" mb={3}>
+                      <ToggleButtonGroup
+                        value={viewMode}
+                        exclusive
+                        onChange={(e, value) => value && setViewMode(value)}
+                        size="small"
+                      >
+                        <ToggleButton value="listado">
+                          <Icon sx={{ mr: 0.5, fontSize: 18 }}>list</Icon>Listado
+                        </ToggleButton>
+                        <ToggleButton value="porCurso">
+                          <Icon sx={{ mr: 0.5, fontSize: 18 }}>school</Icon>Por Curso
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                    </MDBox>
+
+                    {viewMode === "listado" ? (
+                      <DataTable
+                        table={{ columns, rows }}
+                        isSorted={false}
+                        entriesPerPage={{ defaultValue: 10 }}
+                        showTotalEntries
+                        noEndBorder
+                      />
+                    ) : (
+                      <MDBox pb={2}>
+                        {materiasPorCurso.length === 0 ? (
+                          <MDBox py={4} textAlign="center">
+                            <MDTypography variant="body2" color="text.secondary">
+                              No hay materias asignadas a cursos.
+                            </MDTypography>
+                          </MDBox>
+                        ) : (
+                          materiasPorCurso.map((grupo) => (
+                            <Card
+                              key={grupo.curso.id}
+                              sx={{ mb: 2, border: "1px solid #e0e0e0", boxShadow: "none" }}
+                            >
+                              <MDBox p={2}>
+                                <MDBox
+                                  display="flex"
+                                  justifyContent="space-between"
+                                  alignItems="center"
+                                  mb={1}
+                                >
+                                  <MDTypography variant="h6" color="info">
+                                    {getCursoNombreByCurso(grupo.curso)}
+                                  </MDTypography>
+                                  <MDTypography variant="caption" color="text.secondary">
+                                    {grupo.materias.length} materia(s)
+                                  </MDTypography>
+                                </MDBox>
+                                <Divider />
+                                <Grid container spacing={1} mt={1}>
+                                  {grupo.materias.map((materia) => (
+                                    <Grid item xs={12} md={6} lg={4} key={materia.id}>
+                                      <MDBox
+                                        p={1.25}
+                                        borderRadius="md"
+                                        bgColor="#f8f9fa"
+                                        onClick={() => handleOpenForm(materia)}
+                                        sx={{
+                                          cursor: "pointer",
+                                          transition: "all 0.2s ease",
+                                          border: "1px solid transparent",
+                                          "&:hover": {
+                                            backgroundColor: "#eef6ff",
+                                            borderColor: "#1A73E8",
+                                            transform: "translateY(-1px)",
+                                          },
+                                        }}
+                                      >
+                                        <MDTypography
+                                          variant="button"
+                                          fontWeight="medium"
+                                          display="block"
+                                        >
+                                          {materia.nombre}
+                                        </MDTypography>
+                                        <MDBox mt={0.5}>{getDocentesDisplay(materia)}</MDBox>
+                                      </MDBox>
+                                    </Grid>
+                                  ))}
+                                </Grid>
+                              </MDBox>
+                            </Card>
+                          ))
+                        )}
+                      </MDBox>
+                    )}
+                  </>
                 )}
               </MDBox>
             </Card>

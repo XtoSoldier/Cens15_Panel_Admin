@@ -111,10 +111,6 @@ function UserForm() {
     }
 
     if (!isEditMode) {
-      if (!formData.password) {
-        setError("La contraseña es obligatoria.");
-        return;
-      }
       if (formData.password !== formData.confirmPassword) {
         setError("Las contraseñas no coinciden.");
         return;
@@ -130,10 +126,15 @@ function UserForm() {
 
     setSaving(true);
     try {
-      const userData = {
-        nombres: formData.firstName,
-        apellido: formData.lastName,
-      };
+      const userData = isEditMode
+        ? {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+          }
+        : {
+            nombres: formData.firstName,
+            apellido: formData.lastName,
+          };
 
       if (formData.roleId) {
         userData.roleId = formData.roleId;
@@ -250,13 +251,21 @@ function UserForm() {
                     <Grid item xs={12} md={6}>
                       <MDInput
                         type="password"
-                        label="Nueva Contraseña (opcional)"
+                        label={
+                          isEditMode
+                            ? "Nueva Contraseña (opcional)"
+                            : "Contraseña inicial (opcional)"
+                        }
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
                         fullWidth
                         disabled={saving}
-                        placeholder="Dejar en blanco para mantener la actual"
+                        placeholder={
+                          isEditMode
+                            ? "Dejar en blanco para mantener la actual"
+                            : "Dejar en blanco para acceso inicial por email"
+                        }
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
