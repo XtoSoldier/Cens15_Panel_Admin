@@ -11,13 +11,9 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import OutlinedInput from "@mui/material/OutlinedInput";
 import Checkbox from "@mui/material/Checkbox";
-import ListItemText from "@mui/material/ListItemText";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormGroup from "@mui/material/FormGroup";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -62,9 +58,16 @@ function FormModal({ open, onClose, onSave, initialData, saving, responsabilidad
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleResponsabilidadesChange = (event) => {
-    const value = event.target.value;
-    setFormData((prev) => ({ ...prev, responsabilidades: value }));
+  const handleResponsabilidadToggle = (id) => {
+    setFormData((prev) => {
+      const alreadySelected = prev.responsabilidades.includes(id);
+      return {
+        ...prev,
+        responsabilidades: alreadySelected
+          ? prev.responsabilidades.filter((responsabilidadId) => responsabilidadId !== id)
+          : [...prev.responsabilidades, id],
+      };
+    });
   };
 
   const handleSubmit = () => {
@@ -101,35 +104,24 @@ function FormModal({ open, onClose, onSave, initialData, saving, responsabilidad
             />
           </MDBox>
           <MDBox mb={2}>
-            <FormControl fullWidth>
-              <InputLabel id="responsabilidades-label">Responsabilidades</InputLabel>
-              <Select
-                labelId="responsabilidades-label"
-                multiple
-                name="responsabilidades"
-                value={formData.responsabilidades}
-                onChange={handleResponsabilidadesChange}
-                input={<OutlinedInput label="Responsabilidades" />}
-                renderValue={(selected) =>
-                  selected
-                    .map(
-                      (id) =>
-                        responsabilidades.find((r) => r.id === id)?.nombre ||
-                        responsabilidades.find((r) => r.id === id)?.name
-                    )
-                    .filter(Boolean)
-                    .join(", ")
-                }
-                disabled={saving}
-              >
-                {responsabilidades.map((r) => (
-                  <MenuItem key={r.id} value={r.id}>
-                    <Checkbox checked={formData.responsabilidades.includes(r.id)} />
-                    <ListItemText primary={r.nombre || r.name} />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <MDTypography variant="button" fontWeight="medium" display="block" mb={1}>
+              Responsabilidades
+            </MDTypography>
+            <FormGroup sx={{ maxHeight: 320, overflowY: "auto" }}>
+              {responsabilidades.map((r) => (
+                <FormControlLabel
+                  key={r.id}
+                  disabled={saving}
+                  control={
+                    <Checkbox
+                      checked={formData.responsabilidades.includes(r.id)}
+                      onChange={() => handleResponsabilidadToggle(r.id)}
+                    />
+                  }
+                  label={r.nombre || r.name}
+                />
+              ))}
+            </FormGroup>
           </MDBox>
           {formError && (
             <MDTypography variant="body2" color="error">
