@@ -38,10 +38,12 @@ Coded by www.creative-tim.com
 // Material Dashboard 2 React layouts
 import Home from "layouts/home";
 import Tables from "layouts/tables";
+import Alumnos from "layouts/alumnos";
 import Roles from "layouts/roles";
 import Responsabilidades from "layouts/responsabilidades";
 import Orientaciones from "layouts/orientaciones";
 import Anexos from "layouts/anexos";
+import Horarios from "layouts/horarios";
 import Cursos from "layouts/cursos";
 import Materias from "layouts/materias";
 import Docentes from "layouts/docentes";
@@ -68,6 +70,14 @@ const routes = [
     icon: <Icon fontSize="small">group_icon</Icon>,
     route: "/usuarios",
     component: <Tables />,
+  },
+  {
+    type: "collapse",
+    name: "Alumnos",
+    key: "alumnos",
+    icon: <Icon fontSize="small">groups</Icon>,
+    route: "/alumnos",
+    component: <Alumnos />,
   },
   {
     type: "collapse",
@@ -100,6 +110,14 @@ const routes = [
     icon: <Icon fontSize="small">folder_icon</Icon>,
     route: "/anexos",
     component: <Anexos />,
+  },
+  {
+    type: "collapse",
+    name: "Grilla de horarios",
+    key: "horarios",
+    icon: <Icon fontSize="small">schedule</Icon>,
+    route: "/horarios",
+    component: <Horarios />,
   },
   {
     type: "collapse",

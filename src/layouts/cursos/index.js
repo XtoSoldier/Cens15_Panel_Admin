@@ -126,7 +126,6 @@ function FormModal({ open, onClose, onSave, initialData, saving, orientaciones, 
                 onChange={handleChange}
                 fullWidth
                 disabled={saving}
-                sx={{ "& .MuiSelect-select": { py: 2.5 } }}
               >
                 {orientaciones.map((o) => (
                   <MenuItem key={o.id} value={o.id}>
@@ -144,7 +143,6 @@ function FormModal({ open, onClose, onSave, initialData, saving, orientaciones, 
                 onChange={handleChange}
                 fullWidth
                 disabled={saving}
-                sx={{ "& .MuiSelect-select": { py: 2.5 } }}
               >
                 {anexos.map((a) => (
                   <MenuItem key={a.id} value={a.id}>
@@ -162,7 +160,6 @@ function FormModal({ open, onClose, onSave, initialData, saving, orientaciones, 
                 onChange={handleChange}
                 fullWidth
                 disabled={saving}
-                sx={{ "& .MuiSelect-select": { py: 2.5 } }}
               >
                 {CURSOS_VALIDOS.map((c) => (
                   <MenuItem key={c} value={c}>
@@ -181,7 +178,6 @@ function FormModal({ open, onClose, onSave, initialData, saving, orientaciones, 
                 onChange={handleChange}
                 fullWidth
                 disabled={saving}
-                sx={{ "& .MuiSelect-select": { py: 2.5 } }}
               >
                 {DIVISIONES_VALIDAS.map((d) => (
                   <MenuItem key={d} value={d}>

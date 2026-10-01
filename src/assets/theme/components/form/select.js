@@ -19,14 +19,21 @@ import colors from "assets/theme/base/colors";
 // Material Dashboard 2 React helper functions
 import pxToRem from "assets/theme/functions/pxToRem";
 
-const { transparent } = colors;
+const { transparent, grey } = colors;
 
 const select = {
   styleOverrides: {
     select: {
-      display: "grid",
+      display: "flex",
       alignItems: "center",
-      padding: `0 ${pxToRem(12)} !important`,
+      boxSizing: "border-box",
+      minHeight: `${pxToRem(48)} !important`,
+      padding: `${pxToRem(12)} ${pxToRem(40)} ${pxToRem(12)} ${pxToRem(12)} !important`,
+
+      "&.MuiInputBase-inputSizeSmall": {
+        minHeight: `${pxToRem(40)} !important`,
+        padding: `${pxToRem(10)} ${pxToRem(36)} ${pxToRem(10)} ${pxToRem(10)} !important`,
+      },
 
       "& .Mui-selected": {
         backgroundColor: transparent.main,
@@ -35,13 +42,13 @@ const select = {
 
     selectMenu: {
       background: "none",
-      height: "none",
-      minHeight: "none",
       overflow: "unset",
     },
 
     icon: {
-      display: "none",
+      display: "block",
+      right: pxToRem(12),
+      color: grey[600],
     },
   },
 };

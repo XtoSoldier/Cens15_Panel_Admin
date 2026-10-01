@@ -5,9 +5,12 @@ import { useSelector, useDispatch } from "react-redux";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
 import MuiLink from "@mui/material/Link";
 import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -23,6 +26,7 @@ function LoginModal() {
   const dispatch = useDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,6 +37,7 @@ function LoginModal() {
     setOpen(false);
     setEmail("");
     setPassword("");
+    setShowPassword(false);
     setError("");
     setLoading(false);
   };
@@ -126,12 +131,27 @@ function LoginModal() {
               </MDBox>
               <MDBox mb={2}>
                 <MDInput
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   label="Contraseña"
                   fullWidth
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                          onClick={() => setShowPassword((visible) => !visible)}
+                          onMouseDown={(e) => e.preventDefault()}
+                          edge="end"
+                          disabled={loading}
+                        >
+                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </MDBox>
               {error && (

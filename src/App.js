@@ -27,6 +27,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import Sidenav from "examples/Sidenav";
 
 import LoginModal from "components/LoginModal";
+import EnvironmentBadge from "components/EnvironmentBadge";
 import { LoginModalProvider } from "context/LoginModalContext";
 import ProtectedRoute from "components/ProtectedRoute";
 
@@ -164,6 +165,7 @@ export default function App() {
       <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
         <LoginModalProvider>
           <CssBaseline />
+          <EnvironmentBadge />
           {layout === "dashboard" && isAuthenticated && (
             <>
               <Sidenav
@@ -190,6 +192,7 @@ export default function App() {
     <ThemeProvider theme={darkMode ? themeDark : theme}>
       <LoginModalProvider>
         <CssBaseline />
+        <EnvironmentBadge />
         {layout === "dashboard" && isAuthenticated && (
           <>
             <Sidenav color={sidenavColor} brandName="CENS 15 - Administración" routes={routes} />

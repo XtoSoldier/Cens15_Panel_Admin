@@ -99,16 +99,12 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
       setFormError("El apellido del docente es obligatorio.");
       return;
     }
-    if (!formData.email.trim()) {
-      setFormError("El email del docente es obligatorio.");
-      return;
-    }
     setFormError("");
 
     const payload = {
       nombres: formData.nombres.trim(),
       apellidos: formData.apellidos.trim(),
-      email: formData.email.trim(),
+      email: formData.email.trim() || null,
     };
 
     if (formData.userId) {
@@ -152,7 +148,7 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
             <Grid item xs={12}>
               <MDInput
                 type="email"
-                label="Email"
+                label="Email (opcional)"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}

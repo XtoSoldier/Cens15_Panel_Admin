@@ -19,6 +19,8 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
+import Checkbox from "@mui/material/Checkbox";
+import Alert from "@mui/material/Alert";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -33,6 +35,9 @@ import materiaService from "services/materiaService";
 import cursoService from "services/cursoService";
 import orientacionService from "services/orientacionService";
 import docenteService from "services/docenteService";
+import horarioAnexoService from "services/horarioAnexoService";
+import { DAYS } from "layouts/horarios/schedule";
+import { dailyBlocks, courseOccupancy, validateAssignment, assignmentStatus } from "layouts/horarios/courseSchedule";
 
 const DOCENTE_ROLES = ["Titular", "Suplente"];
 
@@ -200,8 +205,10 @@ function FormModal({
   docentes,
   error,
 }) {
-  const [formData, setFormData] = useState({ nombre: "", cursoId: "", docentes: [] });
+  const [formData, setFormData] = useState({ nombre: "", cursoId: "", docentes: [], cargaHoraria: "", horarioIds: [] });
   const [formError, setFormError] = useState("");
+  const [schedule, setSchedule] = useState({ cursoId: "", blocks: [], materias: [], loading: false, error: "" });
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (initialData) {
@@ -220,12 +227,36 @@ function FormModal({
         nombre: initialData.nombre || "",
         cursoId: initialData.cursoId || "",
         docentes: initialDocentes,
+        cargaHoraria: initialData.cargaHoraria ?? 0,
+        horarioIds: (initialData.horarios || []).map((block) => block.id),
       });
     } else {
-      setFormData({ nombre: "", cursoId: "", docentes: [] });
+      setFormData({ nombre: "", cursoId: "", docentes: [], cargaHoraria: "", horarioIds: [] });
     }
     setFormError("");
   }, [initialData, open]);
+
+  useEffect(() => {
+    if (!open || !formData.cursoId) return undefined;
+    let active = true;
+    const cursoId = formData.cursoId;
+    const curso = cursos.find((item) => String(item.id) === String(cursoId));
+    const anexoId = curso?.id_anexo || curso?.anexo?.id;
+    setSchedule({ cursoId, blocks: [], materias: [], loading: true, error: "" });
+    const request = anexoId
+      ? Promise.all([horarioAnexoService.getByAnexo(anexoId), materiaService.getAll()])
+      : Promise.reject(new Error("El curso no tiene un anexo disponible."));
+    request.then(([blocks, materias]) => {
+      if (active) setSchedule({ cursoId, blocks, materias, loading: false, error: "" });
+    }).catch((err) => {
+      if (active) setSchedule({ cursoId, blocks: [], materias: [], loading: false, error: err.message });
+    });
+    return () => { active = false; };
+  }, [open, formData.cursoId, cursos, reload]);
+
+  const scheduleReady = String(schedule.cursoId) === String(formData.cursoId) &&
+    Boolean(formData.cursoId) && !schedule.loading && !schedule.error;
+  const occupied = courseOccupancy(schedule.materias, formData.cursoId, initialData?.id);
 
   useEffect(() => {
     if (error) {
@@ -234,10 +265,11 @@ function FormModal({
   }, [error]);
 
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value, ...(field === "cursoId" ? { horarioIds: [] } : {}) }));
   };
 
   const handleSubmit = () => {
+    if (saving || !scheduleReady) return;
     if (!formData.nombre.trim()) {
       setFormError("El nombre de la materia es obligatorio.");
       return;
@@ -248,9 +280,19 @@ function FormModal({
     }
     setFormError("");
 
+    const assignmentError = validateAssignment(formData.cargaHoraria, formData.horarioIds,
+      schedule.blocks, occupied, Boolean(initialData && !initialData.cargaHoraria));
+    if (formData.cargaHoraria === "" || assignmentError) {
+      setFormError(assignmentError || "Indica la carga horaria semanal.");
+      return;
+    }
+
     const payload = {
       nombre: formData.nombre.trim(),
       cursoId: formData.cursoId,
+      cargaHoraria: Number(formData.cargaHoraria),
+      horarioIds: formData.horarioIds,
+      docentes: [],
     };
 
     if (formData.docentes.length > DOCENTE_ROLES.length) {
@@ -291,10 +333,10 @@ function FormModal({
   const selectedOrientacion = getOrientacionDelCurso();
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={saving ? undefined : onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         {initialData ? "Editar Materia" : "Nueva Materia"}
-        <IconButton onClick={onClose} size="small">
+        <IconButton onClick={onClose} size="small" disabled={saving}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -330,7 +372,7 @@ function FormModal({
                   return (
                     <MenuItem key={c.id} value={c.id}>
                       {c.curso} {c.division} - {orientacion?.nombre || "Sin orientación"} -{" "}
-                      {c.anexo?.nombre || ""}
+                      {c.anexoNombre || c.anexo?.nombre || ""}
                     </MenuItem>
                   );
                 })}
@@ -344,6 +386,49 @@ function FormModal({
                   Orientación: {selectedOrientacion.nombre}
                 </MDTypography>
               )}
+            </Grid>
+            <Grid item xs={12}>
+              <TextField type="number" label="Carga horaria semanal" fullWidth
+                value={formData.cargaHoraria} disabled={saving}
+                inputProps={{ min: initialData && !initialData.cargaHoraria ? 0 : 1, step: 1 }}
+                helperText="Cantidad de horas catedra por semana, no horas de reloj."
+                onChange={(e) => handleChange("cargaHoraria", e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <MDTypography variant="h6">Dias y horas</MDTypography>
+              <MDTypography variant="body2" color="text" mb={2}>
+                {formData.horarioIds.length} / {formData.cargaHoraria || 0} horas seleccionadas.
+                Sin seleccion, la asignacion queda pendiente. La ocupacion corresponde solo a este curso.
+              </MDTypography>
+              {!formData.cursoId && <MDTypography variant="caption">Selecciona un curso para cargar la grilla de su anexo.</MDTypography>}
+              {formData.cursoId && <MDButton variant="text" color="info" disabled={saving || schedule.loading}
+                onClick={() => setReload((value) => value + 1)} sx={{ mb: 2 }}>
+                Actualizar disponibilidad
+              </MDButton>}
+              {scheduleReady && formData.horarioIds.length > 0 && <MDButton variant="text" color="info" disabled={saving}
+                onClick={() => handleChange("horarioIds", [])} sx={{ mb: 2 }}>
+                Quitar horarios y dejar asignacion pendiente
+              </MDButton>}
+              {formData.cursoId && !scheduleReady && !schedule.error && <CircularProgress size={24} />}
+              {schedule.error && <Alert severity="error">{schedule.error}
+                <MDButton color="info" onClick={() => setReload((value) => value + 1)}>Reintentar</MDButton>
+              </Alert>}
+              {scheduleReady && <MDBox sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
+                {DAYS.map((day) => <MDBox key={day.value}>
+                  <MDTypography variant="button" fontWeight="bold">{day.label}</MDTypography>
+                  {dailyBlocks(schedule.blocks, day.value).map((block) => {
+                    const owners = occupied.get(String(block.id));
+                    const selected = formData.horarioIds.some((id) => String(id) === String(block.id));
+                    const label = `${block.label}: ${block.horaInicio.slice(0, 5)} a ${block.horaFin.slice(0, 5)}`;
+                    return block.tipo === "Clase" ? <FormControlLabel key={block.id} sx={{ display: "flex", alignItems: "flex-start" }}
+                      control={<Checkbox checked={selected} disabled={saving || (!selected && (Boolean(owners) || formData.horarioIds.length >= Number(formData.cargaHoraria)))}
+                        onChange={(_, checked) => handleChange("horarioIds", checked ? [...formData.horarioIds, block.id] : formData.horarioIds.filter((id) => String(id) !== String(block.id)))} />}
+                      label={<MDTypography variant="caption">{label}{owners ? ` - Ocupada: ${owners.map((item) => item.nombre).join(", ")}` : ""}</MDTypography>} />
+                      : <MDTypography key={block.id} variant="caption" display="block" color="text">{label}</MDTypography>;
+                  })}
+                  {!dailyBlocks(schedule.blocks, day.value).length && <MDTypography variant="caption" display="block">Sin bloques configurados</MDTypography>}
+                </MDBox>)}
+              </MDBox>}
             </Grid>
             <Grid item xs={12}>
               <DocentesSection
@@ -365,7 +450,7 @@ function FormModal({
         <MDButton variant="outlined" color="dark" onClick={onClose} disabled={saving}>
           Cancelar
         </MDButton>
-        <MDButton variant="gradient" color="info" onClick={handleSubmit} disabled={saving}>
+        <MDButton variant="gradient" color="info" onClick={handleSubmit} disabled={saving || !scheduleReady}>
           {saving ? "Guardando..." : "Guardar"}
         </MDButton>
       </DialogActions>
@@ -542,6 +627,7 @@ function Materias() {
     { Header: "Materia", accessor: "nombre", align: "left" },
     { Header: "Curso", accessor: "curso", align: "left" },
     { Header: "Docentes", accessor: "docentes", align: "left" },
+    { Header: "Carga / horarios", accessor: "horarios", align: "left" },
     { Header: "Acciones", accessor: "actions", align: "center" },
   ];
 
@@ -557,6 +643,7 @@ function Materias() {
       </MDTypography>
     ),
     docentes: getDocentesDisplay(item),
+    horarios: <MDTypography variant="caption">{assignmentStatus(item)}</MDTypography>,
     actions: (
       <MDBox display="flex" gap={1} justifyContent="center">
         <MDButton variant="text" color="dark" size="small" onClick={() => handleOpenForm(item)}>
@@ -708,6 +795,7 @@ function Materias() {
                                           {materia.nombre}
                                         </MDTypography>
                                         <MDBox mt={0.5}>{getDocentesDisplay(materia)}</MDBox>
+                                        <MDTypography variant="caption" display="block">{assignmentStatus(materia)}</MDTypography>
                                       </MDBox>
                                     </Grid>
                                   ))}

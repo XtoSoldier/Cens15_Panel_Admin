@@ -2,6 +2,7 @@
   "name": "material-dashboard-2-react",
   "version": "2.2.0",
   "private": true,
+  "packageManager": "pnpm@10.18.2",
   "author": "Creative Tim",
   "license": "See license in https://www.creative-tim.com/license",
   "description": "React version of Material Dashboard 2 by Creative Tim",
@@ -37,16 +38,21 @@
     "yup": "1.1.1"
   },
   "scripts": {
+    "dev": "pnpm run dev:local-api",
+    "dev:local-api": "env-cmd -f .env.development -- react-scripts start",
+    "dev:prod-api": "env-cmd -f .env.development.prod-api -- react-scripts start",
+    "web:local-api": "pnpm run dev:local-api",
+    "web:prod-api": "pnpm run dev:prod-api",
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:staging": "env-cmd -f .env.staging react-scripts build",
-    "build:prod": "env-cmd -f .env.production react-scripts build",
-    "start:dev": "env-cmd -f .env.development react-scripts start",
-    "start:staging": "env-cmd -f .env.staging react-scripts start",
-    "start:prod": "env-cmd -f .env.production react-scripts start",
+    "build:staging": "env-cmd -f .env.staging -- react-scripts build",
+    "build:prod": "env-cmd -f .env.production -- react-scripts build",
+    "start:dev": "env-cmd -f .env.development -- react-scripts start",
+    "start:staging": "env-cmd -f .env.staging -- react-scripts start",
+    "start:prod": "env-cmd -f .env.production -- react-scripts start",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "install:clean": "rm -rf node_modules/ && rm -rf package-lock.json && npm install && npm start"
+    "install:clean": "pnpm install --force && pnpm start"
   },
   "eslintConfig": {
     "extends": [
@@ -70,13 +76,10 @@
     "ajv": "^7.2.4",
     "env-cmd": "^11.0.0",
     "eslint": "8.39.0",
-    "eslint-config-prettier": "8.8.0",
     "eslint-plugin-import": "2.27.5",
     "eslint-plugin-jsx-a11y": "6.7.1",
-    "eslint-plugin-prettier": "4.2.1",
     "eslint-plugin-react": "7.32.2",
-    "eslint-plugin-react-hooks": "4.6.0",
-    "prettier": "2.8.8"
+    "eslint-plugin-react-hooks": "4.6.0"
   },
   "overrides": {
     "svgo": "3.0.2"
