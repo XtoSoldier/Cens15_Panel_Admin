@@ -1,6 +1,5 @@
-import { api } from "config/api";
-
-const API_BASE = process.env.REACT_APP_API_BASE_URL || "https://localhost:7000/api";
+import config, { api } from "config/api";
+import { currentToken, handleSessionResponse } from "utils/session";
 
 export const certificadoService = {
   getAll: () => api.get("/Certificados"),
@@ -19,21 +18,25 @@ export const certificadoService = {
     const formData = new FormData();
     formData.append("file", file);
 
-    const token = localStorage.getItem("token");
+    const token = currentToken({ required: true });
     const headers = {};
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}/Certificados/subir-imagen`, {
+    const url = `${config.apiBase.replace(/\/$/, "")}/Certificados/subir-imagen`;
+    const response = await fetch(url, {
       method: "POST",
       headers,
       body: formData,
     });
+    handleSessionResponse(response, token, url, config.apiBase);
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(text || "Error al subir imagen");
+      const error = new Error(text || "Error al subir imagen");
+      error.status = response.status;
+      throw error;
     }
 
     return response.json();

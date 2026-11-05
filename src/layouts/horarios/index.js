@@ -18,6 +18,7 @@ import anexoService from "services/anexoService";
 import horarioAnexoService from "services/horarioAnexoService";
 import { DAYS, endTime, repeatDay, serializeSchedule, validateSchedule } from "./schedule";
 import CourseScheduleView from "./CourseScheduleView";
+import { defaultAnexoId } from "./courseSchedule";
 
 export default function Horarios() {
   const [anexos, setAnexos] = useState([]);
@@ -32,13 +33,16 @@ export default function Horarios() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [reload, setReload] = useState(0);
-  const [view, setView] = useState("anexo");
+  const [showEditor, setShowEditor] = useState(false);
   const [courseRefresh, setCourseRefresh] = useState(0);
 
   useEffect(() => {
     let active = true;
     anexoService.getAll().then((data) => {
-      if (active) setAnexos(data);
+      if (active) {
+        setAnexos(data);
+        setAnexoId(defaultAnexoId(data));
+      }
     }).catch((err) => {
       if (active) setError(err.message);
     }).finally(() => {
@@ -48,7 +52,7 @@ export default function Horarios() {
   }, []);
 
   useEffect(() => {
-    if (!anexoId) return undefined;
+    if (!anexoId || !showEditor) return undefined;
     let active = true;
     setLoading(true);
     setLoaded(false);
@@ -70,7 +74,7 @@ export default function Horarios() {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [anexoId, reload]);
+  }, [anexoId, reload, showEditor]);
 
   useEffect(() => {
     if (!dirty) return undefined;
@@ -139,9 +143,9 @@ export default function Horarios() {
       <MDBox py={3}>
         <Card>
           <MDBox p={3}>
-            <MDTypography variant="h5">Grilla de horarios por anexo</MDTypography>
+            <MDTypography variant="h5">Grilla de horarios</MDTypography>
             <MDTypography variant="body2" color="text" mt={1}>
-              Configura horas catedra y recesos de lunes a viernes. Cada anexo tiene su propia grilla.
+              Consulta los horarios de cada curso y filtra los dias que necesitas visualizar.
             </MDTypography>
             <MDBox mt={3} maxWidth={420}>
               <TextField select fullWidth label="Anexo" value={anexoId}
@@ -151,6 +155,9 @@ export default function Horarios() {
                   setBlocks([]);
                   setLoaded(false);
                   setDirty(false);
+                  setShowEditor(false);
+                  setError("");
+                  setSuccess("");
                   setAnexoId(event.target.value);
                 }}>
                 {anexos.map((anexo) => <MenuItem key={anexo.id} value={anexo.id}>{anexo.nombre}</MenuItem>)}
@@ -158,17 +165,29 @@ export default function Horarios() {
             </MDBox>
             {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
             {success && <Alert severity="success" sx={{ mt: 2 }}>{success}</Alert>}
-            <Tabs value={view} onChange={(_, value) => setView(value)} sx={{ mt: 2 }} aria-label="Vista de horarios">
-              <Tab value="anexo" label="Grilla del anexo" disabled={saving} />
-              <Tab value="curso" label="Por curso" disabled={saving} />
-            </Tabs>
-            {view === "curso" && anexoId ? <CourseScheduleView anexoId={anexoId} refreshKey={courseRefresh} /> : loadingAnexos || loading ? (
+            <MDBox mt={2}>
+              <MDButton variant="outlined" color="dark" disabled={!anexoId || loading || saving}
+                onClick={() => {
+                  if (showEditor && dirty && !window.confirm("Descartar los cambios sin guardar y ocultar la configuracion?")) return;
+                  setDirty(false);
+                  setError("");
+                  setSuccess("");
+                  setShowEditor((value) => !value);
+                }}>
+                <Icon sx={{ mr: 1 }}>{showEditor ? "visibility_off" : "settings"}</Icon>
+                {showEditor ? "Ocultar configuracion del anexo" : "Mostrar configuracion del anexo"}
+              </MDButton>
+            </MDBox>
+            {showEditor && <Alert severity="warning" sx={{ mt: 2 }}>
+              Estas editando la grilla base del anexo. Los cambios afectan los bloques disponibles para todos sus cursos.
+            </Alert>}
+            {loadingAnexos || (showEditor && loading) ? (
               <MDBox py={4} textAlign="center"><CircularProgress /></MDBox>
             ) : !anexoId ? (
               <MDTypography variant="body2" color="text" mt={3}>
                 {anexos.length ? "Selecciona un anexo para comenzar." : "Primero debes crear un anexo."}
               </MDTypography>
-            ) : !loaded ? (
+            ) : !showEditor ? null : !loaded ? (
               <MDButton color="info" onClick={() => setReload((value) => value + 1)} sx={{ mt: 2 }}>
                 Reintentar carga
               </MDButton>
@@ -247,6 +266,8 @@ export default function Horarios() {
                 </MDBox>
               </>
             )}
+            {anexoId && <CourseScheduleView key={anexoId} anexoId={anexoId} refreshKey={courseRefresh}
+              anexoNombre={anexos.find((anexo) => String(anexo.id) === String(anexoId))?.nombre || ""} />}
           </MDBox>
         </Card>
       </MDBox>

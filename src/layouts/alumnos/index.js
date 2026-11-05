@@ -23,6 +23,7 @@ import MDButton from "components/MDButton";
 import MDInput from "components/MDInput";
 import MDTypography from "components/MDTypography";
 import alumnoService from "services/alumnoService";
+import { matchesAlumnoSearch, formatAlumnoBirthDate, formatAlumnoGender } from "./alumnoFields";
 
 function RestoreModal({ alumno, loading, onClose, onConfirm }) {
   return (
@@ -90,10 +91,7 @@ function Alumnos() {
     return alumnos.filter((alumno) => {
       const matchesStatus =
         status === "all" || (status === "deleted" ? alumno.eliminado : !alumno.eliminado);
-      const matchesSearch =
-        !query ||
-        `${alumno.apellidos} ${alumno.nombres}`.toLowerCase().includes(query) ||
-        String(alumno.numeroDocumento || "").includes(query);
+      const matchesSearch = matchesAlumnoSearch(alumno, query);
       return matchesStatus && matchesSearch;
     });
   }, [alumnos, search, status]);
@@ -116,6 +114,8 @@ function Alumnos() {
     { Header: "Apellidos", accessor: "apellidos", align: "left" },
     { Header: "Nombres", accessor: "nombres", align: "left" },
     { Header: "DNI", accessor: "dni", align: "left" },
+    { Header: "Nacimiento", accessor: "fechaNacimiento", align: "left" },
+    { Header: "Sexo", accessor: "genero", align: "left" },
     { Header: "Estado", accessor: "estado", align: "center" },
     { Header: "Eliminado el", accessor: "fechaEliminacion", align: "left" },
     { Header: "Acciones", accessor: "actions", align: "center" },
@@ -124,7 +124,11 @@ function Alumnos() {
   const rows = filteredAlumnos.map((alumno) => ({
     apellidos: <MDTypography variant="button">{alumno.apellidos}</MDTypography>,
     nombres: <MDTypography variant="body2">{alumno.nombres}</MDTypography>,
-    dni: <MDTypography variant="caption">{alumno.numeroDocumento}</MDTypography>,
+    dni: <MDTypography variant="caption">{alumno.numeroDocumento || "-"}</MDTypography>,
+    fechaNacimiento: (
+      <MDTypography variant="caption">{formatAlumnoBirthDate(alumno.fechaNacimiento)}</MDTypography>
+    ),
+    genero: <MDTypography variant="caption">{formatAlumnoGender(alumno.genero)}</MDTypography>,
     estado: (
       <Chip
         label={alumno.eliminado ? "Eliminado" : "Activo"}

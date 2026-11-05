@@ -47,6 +47,7 @@ import Horarios from "layouts/horarios";
 import Cursos from "layouts/cursos";
 import Materias from "layouts/materias";
 import Docentes from "layouts/docentes";
+import Transferencias from "layouts/transferencias";
 import Certificados from "layouts/certificados";
 import LoginActivities from "layouts/loginActivities";
 import Notifications from "layouts/notifications";
@@ -55,6 +56,14 @@ import Notifications from "layouts/notifications";
 import Icon from "@mui/material/Icon";
 
 const routes = [
+  {
+    type: "collapse",
+    name: "Transferencia de datos",
+    key: "transferencias",
+    icon: <Icon fontSize="small">import_export</Icon>,
+    route: "/transferencias",
+    component: <Transferencias />,
+  },
   {
     type: "collapse",
     name: "Home",

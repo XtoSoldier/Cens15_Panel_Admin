@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Chip from "@mui/material/Chip";
+import { config, checkApiHealth } from "config/api";
 
 const API_CHECK_INTERVAL_MS = 2000;
 const API_CHECK_TIMEOUT_MS = 1500;
@@ -7,7 +8,7 @@ const API_CHECK_TIMEOUT_MS = 1500;
 function EnvironmentBadge() {
   const visible = process.env.REACT_APP_SHOW_ENV_INDICATOR === "true";
   const label = process.env.REACT_APP_ENV_LABEL;
-  const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
+  const apiBaseUrl = config.apiBase;
   const swaggerUrl = apiBaseUrl
     ? `${apiBaseUrl.replace(/\/api\/?$/, "")}/swagger/index.html`
     : "";
@@ -21,12 +22,8 @@ function EnvironmentBadge() {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), API_CHECK_TIMEOUT_MS);
       try {
-        await fetch(`${apiBaseUrl}/auth/login?status=${Date.now()}`, {
-          mode: "no-cors",
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (mounted) setApiStatus("up");
+        const healthy = await checkApiHealth(controller.signal);
+        if (mounted) setApiStatus(healthy ? "up" : "down");
       } catch {
         if (mounted) setApiStatus("down");
       } finally {

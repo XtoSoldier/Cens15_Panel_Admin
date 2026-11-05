@@ -30,6 +30,7 @@ import LoginModal from "components/LoginModal";
 import EnvironmentBadge from "components/EnvironmentBadge";
 import { LoginModalProvider } from "context/LoginModalContext";
 import ProtectedRoute from "components/ProtectedRoute";
+import SessionGuard from "components/SessionGuard";
 
 // Material  2 React themes
 import theme from "assets/theme";
@@ -49,9 +50,7 @@ import routes from "routes";
 
 // Material Dashboard 2 React contexts
 import { useMaterialUIController } from "context";
-import { setAuth } from "store/slices/authSlice";
 import { setMiniSidenav } from "store/slices/uiSlice";
-import authService from "services/authService";
 import NotFound from "layouts/notFound";
 import UserForm from "layouts/userForm";
 
@@ -74,14 +73,6 @@ export default function App() {
   } = controller;
   const [rtlCache, setRtlCache] = useState(null);
   const { pathname } = useLocation();
-
-  // Hydrate auth state from localStorage on mount
-  useEffect(() => {
-    const storedUser = authService.getCurrentUser();
-    if (storedUser && authService.isAuthenticated()) {
-      dispatch(setAuth({ isAuthenticated: true, currentUser: storedUser }));
-    }
-  }, [dispatch]);
 
   // Cache for the rtl
   useMemo(() => {
@@ -164,6 +155,7 @@ export default function App() {
     <CacheProvider value={rtlCache}>
       <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
         <LoginModalProvider>
+          <SessionGuard />
           <CssBaseline />
           <EnvironmentBadge />
           {layout === "dashboard" && isAuthenticated && (
@@ -180,8 +172,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             {getRoutes(routes)}
-            <Route path="/usuarios/nuevo" element={<UserForm />} />
-            <Route path="/usuarios/editar/:id" element={<UserForm />} />
+            <Route path="/usuarios/nuevo" element={<ProtectedRoute><UserForm /></ProtectedRoute>} />
+            <Route path="/usuarios/editar/:id" element={<ProtectedRoute><UserForm /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <LoginModal />
@@ -191,6 +183,7 @@ export default function App() {
   ) : (
     <ThemeProvider theme={darkMode ? themeDark : theme}>
       <LoginModalProvider>
+        <SessionGuard />
         <CssBaseline />
         <EnvironmentBadge />
         {layout === "dashboard" && isAuthenticated && (
@@ -202,8 +195,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           {getRoutes(routes)}
-          <Route path="/usuarios/nuevo" element={<UserForm />} />
-          <Route path="/usuarios/editar/:id" element={<UserForm />} />
+          <Route path="/usuarios/nuevo" element={<ProtectedRoute><UserForm /></ProtectedRoute>} />
+          <Route path="/usuarios/editar/:id" element={<ProtectedRoute><UserForm /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <LoginModal />

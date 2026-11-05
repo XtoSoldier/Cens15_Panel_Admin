@@ -1,11 +1,12 @@
 import { api } from "config/api";
-
-const TOKEN_KEY = "token";
-const USER_KEY = "currentUser";
+import { TOKEN_KEY, USER_KEY, currentToken, expireSession, isTokenValid, notifySession, sessionUser } from "utils/session";
 
 export const authService = {
   login: async (email, password) => {
     const response = await api.post("/auth/login", { email, password });
+    if (!isTokenValid(response.token)) {
+      throw new Error("La API devolvio una sesion invalida o vencida.");
+    }
     const userData = {
       email,
       name: response.name,
@@ -15,30 +16,20 @@ export const authService = {
     };
     localStorage.setItem(TOKEN_KEY, response.token);
     localStorage.setItem(USER_KEY, JSON.stringify(userData));
+    notifySession("login");
     return userData;
   },
 
   logout: () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    expireSession(localStorage.getItem(TOKEN_KEY), "logout");
   },
 
-  getToken: () => localStorage.getItem(TOKEN_KEY),
+  getToken: () => currentToken({ required: true }),
 
-  getCurrentUser: () => {
-    const stored = localStorage.getItem(USER_KEY);
-    if (!stored) return null;
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return null;
-    }
-  },
+  getCurrentUser: sessionUser,
 
   isAuthenticated: () => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) return false;
-    return true;
+    return Boolean(sessionUser());
   },
 };
 
