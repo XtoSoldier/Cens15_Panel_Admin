@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Chip from "@mui/material/Chip";
 import { config, checkApiHealth } from "config/api";
 
-const API_CHECK_INTERVAL_MS = 2000;
+const API_CHECK_INTERVAL_MS = 60000;
 const API_CHECK_TIMEOUT_MS = 1500;
 
 function EnvironmentBadge() {

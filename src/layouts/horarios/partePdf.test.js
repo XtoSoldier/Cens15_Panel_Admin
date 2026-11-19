@@ -44,7 +44,7 @@ function fixture() {
       { docente: "Persona inactiva", rol: "Suplente", activo: false }],
     horarios: bloques.filter((block) => block.tipo === "Clase" && [1, 2, 4, 5, 7, 8][index] === block.orden).map(({ id }) => ({ id })),
   }));
-  return { cursos: [{ id: 1, curso: "1\u00b0", division: "A", orientacionNombreCorto: "Sociales", anexoNombre: "Anexo de prueba" }],
+  return { cursos: [{ id: 1, curso: "1\u00b0", division: "A", orientacionNombreCorto: "Sociales", anexoNombre: "Anexo de prueba", preceptorNombre: "Ana Perez" }],
     semanas: calendarWeeks("2026-11").slice(0, 3), materias, bloques,
     datosInstitucion: "Datos institucionales de prueba" };
 }
@@ -71,7 +71,8 @@ test("creates real vector A4 landscape pages with two full weeks and an empty od
   expect(titles.map(([, , y]) => y)).toEqual([15.5, 120.5, 15.5]);
   const lastPage = result.doc.internal.pages[2].join("\n");
   expect(lastPage).not.toContain("Hora libre");
-  expect(lastPage.match(/Parte semanal de asistencia docente/g)).toHaveLength(1);
+  expect(lastPage.match(/Preceptor a Cargo: Ana Perez/g)).toHaveLength(1);
+  expect(lastPage.match(/Firma del Preceptor/g)).toHaveLength(5);
   expect(result.doc.line.mock.calls.filter((args) => args.join(",") === "0,105,297,105")).toHaveLength(2);
   expect(result.filename).toBe("parte-Anexo-de-prueba-2026-11-02-2026-11-20.pdf");
   expect(result.filename).not.toContain("rez");
@@ -89,6 +90,10 @@ test("courses never share a physical page and duplicate weeks are printed only o
   expect(content[1]).toContain("Sociales");
   expect(content[2]).not.toContain("Sociales");
   expect(content[3]).not.toContain("Sociales");
+  expect(content[0]).toContain("Preceptor a Cargo: Ana Perez");
+  expect(content[2]).toContain("Preceptor a Cargo: Sin preceptor asignado");
+  expect(content[2]).not.toContain("Ana Perez");
+  expect(content[3]).not.toContain("Ana Perez");
 });
 
 test("keeps every subject and active teacher, pastel colors and 5 mm signing areas within each half", () => {
@@ -145,21 +150,103 @@ test("background-free mode keeps all fills white without removing content, borde
   plain.doc.setFillColor.mock.calls.forEach((rgb) => expect(rgb).toEqual([255, 255, 255]));
 });
 
-test("each weekly planilla has one preceptor signature below the table at the right, not in the empty half", () => {
+test("adds five daily preceptor signature cells after the last hour within each occupied half", () => {
   const { doc } = createPartePdf(fixture());
   const signatures = doc.text.mock.calls.filter(([value]) => value === "Firma del Preceptor");
-  expect(signatures).toHaveLength(3);
-  expect(signatures.map(([, , y]) => y)).toEqual([101, 206, 101]);
-  signatures.forEach(([, x, y, options]) => {
-    expect(x).toBe(263);
-    expect(options).toEqual(expect.objectContaining({ align: "center" }));
-    expect(doc.line).toHaveBeenCalledWith(233, y - 2.5, 293, y - 2.5);
-    const halfStart = y > 105 ? 105 : 0;
-    const bottom = Math.max(...doc.rect.mock.calls.filter(([, ry]) => ry >= halfStart && ry < halfStart + 105)
-      .map(([, ry, , height]) => ry + height));
-    expect(y - 2.5 - bottom).toBeGreaterThanOrEqual(4.99);
+  expect(signatures).toHaveLength(15);
+  const width = 54;
+  signatures.forEach(([, x, y], index) => {
+    expect(x).toBeCloseTo(23.5 + index % 5 * width);
+    const cell = doc.rect.mock.calls.find(([rx, ry, rw, rh, style]) =>
+      style === "FD" && Math.abs(rx + 0.5 - x) < 0.001 && rw === width && Math.abs(ry + rh - 0.5 - y) < 0.001);
+    expect(cell).toBeDefined();
+    const [, top, , height] = cell;
+    expect(height).toBeGreaterThanOrEqual(7.5);
+    // The 6 pt label begins more than 5 mm below the top of the cell.
+    expect(y - 6 * 25.4 / 72 - top).toBeGreaterThanOrEqual(5);
+    expect(top % 105 + height).toBeLessThanOrEqual(101);
+    expect(doc.rect.mock.calls.some(([rx, ry, rw, rh]) =>
+      rx === x - 0.5 && rw === width && Math.abs(ry + rh - top) < 0.001 && ry < top)).toBe(true);
   });
-  expect(doc.internal.pages[2].join("\n").match(/Firma del Preceptor/g)).toHaveLength(1);
+  expect(doc.text.mock.calls.filter(([value]) => value === "22:05 - 22:40")).toHaveLength(3);
+  expect(doc.text.mock.calls.filter(([value]) => value === "Hora 6")).toHaveLength(3);
+  expect(doc.internal.pages[2].join("\n").match(/Firma del Preceptor/g)).toHaveLength(5);
+  expect(doc.line.mock.calls.some(([x1, , x2]) => x1 === 233 && x2 === 293)).toBe(false);
+});
+
+test.each([false, true])("distributes hour and time vertically inside tall and short index cells (sinColores=%s)", (sinColores) => {
+  const input = fixture();
+  input.materias = [input.materias[0]];
+  const { doc } = createPartePdf({ ...input, sinColores });
+  const labels = doc.text.mock.calls.filter(([value]) => /^Hora \d+$/.test(value));
+  expect(labels).toHaveLength(18);
+  const heights = new Set();
+  labels.forEach(([, x, labelY]) => {
+    const cell = doc.rect.mock.calls.find(([rx, ry, width, height, style]) =>
+      rx === 4 && width === 19 && style === "FD" && labelY > ry && labelY < ry + height);
+    expect(cell).toBeDefined();
+    const [, top, , height] = cell;
+    heights.add(height);
+    const time = doc.text.mock.calls.find(([value, tx, ty]) =>
+      /^\d{2}:\d{2} - \d{2}:\d{2}$/.test(value) && tx === x && ty > top && ty < top + height);
+    expect(time).toBeDefined();
+    expect(labelY - top).toBeGreaterThanOrEqual(2.8);
+    expect(top + height - time[2]).toBeGreaterThanOrEqual(1.2);
+    expect(time[2] - labelY).toBeGreaterThanOrEqual(2.29);
+    if (height > 8) {
+      expect(labelY - top).toBeCloseTo(3.2);
+      expect(top + height - time[2]).toBeCloseTo(1.6);
+    }
+  });
+  expect(heights.size).toBeGreaterThan(1);
+  doc.setFontSize(6.5);
+  expect(doc.getTextWidth("19:10 - 19:50")).toBeLessThanOrEqual(18);
+});
+
+test.each([false, true])("each daily signing cell restores its white fill after drawing text (sinColores=%s)", (sinColores) => {
+  const { doc } = createPartePdf({ ...fixture(), sinColores });
+  const cells = doc.rect.mock.calls.map((call, index) => ({ call, order: doc.rect.mock.invocationCallOrder[index] }))
+    .filter(({ call: [, , width, , style] }) => width === 54 && style === "FD");
+  expect(cells).toHaveLength(15);
+  cells.forEach(({ order }) => {
+    const previousText = Math.max(...doc.text.mock.invocationCallOrder.filter((value) => value < order));
+    const fillIndex = doc.setFillColor.mock.invocationCallOrder.findIndex((value) => value > previousText && value < order);
+    expect(fillIndex).toBeGreaterThanOrEqual(0);
+    expect(doc.setFillColor.mock.calls[fillIndex]).toEqual([255, 255, 255]);
+  });
+});
+
+test("uses each course's own preceptor and wraps long header names above the table", () => {
+  const input = fixture();
+  input.semanas = input.semanas.slice(0, 1);
+  input.bloques = input.bloques.filter((block) => block.orden === 1);
+  input.materias = [];
+  input.cursos[0].preceptorNombre = "Nombre compuesto del preceptor con todos sus apellidos completos ".repeat(3).trim();
+  input.cursos.push({ id: 2, curso: "2", division: "B", preceptorNombre: "Otro Preceptor" });
+  const { doc } = createPartePdf(input);
+  const firstPage = doc.internal.pages[1].join("\n");
+  expect(firstPage).not.toContain("Otro Preceptor");
+  expect(doc.internal.pages[2].join("\n")).toContain("Preceptor a Cargo: Otro Preceptor");
+  const lines = doc.text.mock.calls.filter(([, x, y]) => x === 148.5 && y < 105);
+  expect(lines.length).toBeGreaterThan(1);
+  expect(lines.slice(0, lines.length - 1).map(([value]) => value).join(" "))
+    .toBe(`Preceptor a Cargo: ${input.cursos[0].preceptorNombre}`);
+  doc.setFontSize(8);
+  lines.forEach(([value]) => expect(doc.getTextWidth(value)).toBeLessThanOrEqual(144.5));
+  const tableTop = doc.rect.mock.calls.find(([x, , width, , style]) => x === 4 && width === 289 && style === "FD")[1];
+  expect(Math.max(...lines.filter(([value]) => value !== "Preceptor a Cargo: Otro Preceptor").map(([, , y]) => y))).toBeLessThan(tableTop);
+});
+
+test("measures the additional signature row and wrapped header before drawing", () => {
+  const input = fixture();
+  input.cursos[0].preceptorNombre = "Nombre completo ".repeat(100);
+  expect(() => createPartePdf(input)).toThrow(/no cabe/);
+  expect(jsPDF.mock.results[jsPDF.mock.results.length - 1].value.text).not.toHaveBeenCalled();
+  input.cursos[0].preceptorNombre = "Ana Perez";
+  input.bloques.push(...DAYS.map((day, index) => ({ id: 100 + index, diaSemana: day.value,
+    orden: 9, tipo: "Clase", horaInicio: "22:40:00", horaFin: "23:15:00" })));
+  expect(() => createPartePdf(input)).toThrow(/no cabe/);
+  expect(jsPDF.mock.results[jsPDF.mock.results.length - 1].value.rect).not.toHaveBeenCalled();
 });
 
 test("preserves differing day times as separate rows and regenerates cross-year day labels", () => {
@@ -169,7 +256,7 @@ test("preserves differing day times as separate rows and regenerates cross-year 
   input.semanas = [{ ...calendarWeeks("2026-01")[0], days: [{ label: "Fake" }] }];
   const { doc } = createPartePdf(input);
   const printed = doc.text.mock.calls.map(([value]) => value).join("\n");
-  ["19:00-19:35", "19:10-19:45", "Lunes 29", "Martes 30", "Jueves 1", "Viernes 2", "diciembre 2025 / enero 2026", "Sin bloque"].forEach((value) => expect(printed).toContain(value));
+  ["19:00 - 19:35", "19:10 - 19:45", "Lunes 29", "Martes 30", "Jueves 1", "Viernes 2", "diciembre 2025 / enero 2026", "Sin bloque"].forEach((value) => expect(printed).toContain(value));
   expect(printed).not.toContain("Fake");
   expect(doc.text.mock.calls.filter(([value]) => value === "Hora 1")).toHaveLength(2);
 });

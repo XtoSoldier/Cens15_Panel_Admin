@@ -47,6 +47,7 @@ import Horarios from "layouts/horarios";
 import Cursos from "layouts/cursos";
 import Materias from "layouts/materias";
 import Docentes from "layouts/docentes";
+import Preceptores from "layouts/preceptores";
 import Transferencias from "layouts/transferencias";
 import Certificados from "layouts/certificados";
 import LoginActivities from "layouts/loginActivities";
@@ -151,6 +152,14 @@ const routes = [
     icon: <Icon fontSize="small">badge_icon</Icon>,
     route: "/docentes",
     component: <Docentes />,
+  },
+  {
+    type: "collapse",
+    name: "Preceptores",
+    key: "preceptores",
+    icon: <Icon fontSize="small">supervisor_account</Icon>,
+    route: "/preceptores",
+    component: <Preceptores />,
   },
   {
     type: "collapse",

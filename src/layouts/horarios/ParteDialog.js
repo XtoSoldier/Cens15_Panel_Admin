@@ -124,6 +124,7 @@ export default function ParteDialog({ open, onClose, cursos, initialCourseIds, m
           Anexo: <strong>{anexoNombre}</strong>. Se utiliza la grilla guardada completa de lunes a viernes,
           independientemente del filtro de dias de la pantalla. Cada hoja A4 horizontal contiene dos semanas distintas
           del mismo curso, una arriba y otra debajo, separadas por una linea de corte.
+          El preceptor a cargo informado en cada curso figura en la cabecera y firma por dia en la ultima fila.
         </Alert>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <TextField label="Institucion" value={institucion} disabled={busy} fullWidth inputProps={{ maxLength: 120 }}

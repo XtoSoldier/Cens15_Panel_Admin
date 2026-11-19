@@ -5,6 +5,10 @@ import Card from "@mui/material/Card";
 import CircularProgress from "@mui/material/CircularProgress";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDInput from "components/MDInput";
@@ -23,6 +27,8 @@ function UserForm() {
 
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState(null);
   const [roles, setRoles] = useState([]);
   const [originalEmail, setOriginalEmail] = useState("");
@@ -110,18 +116,14 @@ function UserForm() {
       return;
     }
 
-    if (!isEditMode) {
-      if (formData.password !== formData.confirmPassword) {
-        setError("Las contraseñas no coinciden.");
-        return;
-      }
+    if (formData.password !== formData.confirmPassword) {
+      setError("Las contraseñas no coinciden.");
+      return;
     }
 
-    if (isEditMode) {
-      if (formData.password && formData.password !== formData.confirmPassword) {
-        setError("Las contraseñas no coinciden.");
-        return;
-      }
+    if (formData.password && formData.password.length < 6) {
+      setError("La nueva contraseña debe tener al menos 6 caracteres.");
+      return;
     }
 
     setSaving(true);
@@ -250,7 +252,7 @@ function UserForm() {
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <MDInput
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         label={
                           isEditMode
                             ? "Nueva Contraseña (opcional)"
@@ -261,6 +263,23 @@ function UserForm() {
                         onChange={handleChange}
                         fullWidth
                         disabled={saving}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                type="button"
+                                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                aria-pressed={showPassword}
+                                onClick={() => setShowPassword((visible) => !visible)}
+                                onMouseDown={(e) => e.preventDefault()}
+                                edge="end"
+                                disabled={saving}
+                              >
+                                {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
                         placeholder={
                           isEditMode
                             ? "Dejar en blanco para mantener la actual"
@@ -270,13 +289,34 @@ function UserForm() {
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <MDInput
-                        type="password"
+                        type={showConfirmPassword ? "text" : "password"}
                         label="Confirmar Nueva Contraseña"
                         name="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleChange}
                         fullWidth
                         disabled={saving}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                type="button"
+                                aria-label={
+                                  showConfirmPassword
+                                    ? "Ocultar confirmación de contraseña"
+                                    : "Mostrar confirmación de contraseña"
+                                }
+                                aria-pressed={showConfirmPassword}
+                                onClick={() => setShowConfirmPassword((visible) => !visible)}
+                                onMouseDown={(e) => e.preventDefault()}
+                                edge="end"
+                                disabled={saving}
+                              >
+                                {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
                       />
                     </Grid>
                   </Grid>

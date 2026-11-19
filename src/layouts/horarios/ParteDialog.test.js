@@ -8,7 +8,8 @@ import { createPartePdf } from "./partePdf";
 
 jest.mock("./partePdf", () => ({ createPartePdf: jest.fn() }));
 
-const cursos = [{ id: 1, curso: "1", division: "A" }, { id: 2, curso: "2", division: "B" }];
+const cursos = [{ id: 1, curso: "1", division: "A", preceptorNombre: "Ana Perez" },
+  { id: 2, curso: "2", division: "B", preceptorNombre: null }];
 const initialCourseIds = [1];
 const bloques = [{ id: 5, diaSemana: "Monday", orden: 1, tipo: "Clase", horaInicio: "19:10:00", horaFin: "19:50:00" }];
 let root;
@@ -58,6 +59,7 @@ test("requires an explicit week selection and shows the actual PDF before enabli
   await click("Generar vista previa");
   const request = createPartePdf.mock.calls[0][0];
   expect(request.cursos).toEqual([cursos[0]]);
+  expect(request.cursos[0].preceptorNombre).toBe("Ana Perez");
   expect(request.semanas.map((week) => week.id)).toEqual(["2026-11-02", "2026-11-09"]);
   expect(request.bloques).toBe(bloques);
   expect(request.anexoNombre).toBe("Esc. 41");

@@ -13,8 +13,9 @@ const FONT = 6.5;
 const LEADING = 2.3;
 const PAD = 0.5;
 const SIGNATURE = 5;
-// Reserve clear handwriting space and the label below the table for the preceptor.
-const FOOTER = 7.5;
+// Include the 6 pt label and bottom padding outside the 5 mm handwriting area.
+const PRECEPTOR_SIGNATURE = SIGNATURE + 2.7;
+const HEADER_COLUMN = (WIDTH - 2 * MARGIN) / 2;
 
 function text(value) {
   const result = String(value ?? "").trim();
@@ -72,9 +73,10 @@ export function createPartePdf({ cursos, semanas, materias = [], bloques = [], i
       `Anexo: ${text(anexoNombre || curso.anexoNombre || "Sin anexo informado")} | Curso: ${text(courseName || curso.id)}`,
     ].flatMap((line) => wrap(line, WIDTH - 2 * MARGIN));
     doc.setFont("helvetica", "normal");
+    const preceptor = wrap(`Preceptor a Cargo: ${text(curso.preceptorNombre) || "Sin preceptor asignado"}`, HEADER_COLUMN);
     const weekLines = Math.max(...pages.filter((page) => String(page.curso.id) === String(curso.id))
-      .flatMap((page) => page.semanas).map((item) => wrap(`${item.label} | ${item.monthLabel}`, WIDTH - 2 * MARGIN).length));
-    const headerHeight = (heading.length + weekLines) * 3 + 1;
+      .flatMap((page) => page.semanas).map((item) => wrap(`${item.label} | ${item.monthLabel}`, HEADER_COLUMN - 2).length));
+    const headerHeight = (heading.length + Math.max(weekLines, preceptor.length)) * 3 + 1;
     doc.setFontSize(FONT);
     const measured = rows.map((row) => {
       const cells = DAYS.map((day) => {
@@ -95,17 +97,17 @@ export function createPartePdf({ cursos, semanas, materias = [], bloques = [], i
           return { lines, height, color: chroma(subjectColor(materia).background).rgb() };
         }) };
       });
-      const indexLines = [row.label, `${row.horaInicio.slice(0, 5)}-${row.horaFin.slice(0, 5)}`];
+      const indexLines = [row.label, `${row.horaInicio.slice(0, 5)} - ${row.horaFin.slice(0, 5)}`];
       const height = Math.max(row.tipo === "Receso" ? 3.8 : 6.4,
         ...cells.map((cell) => cell.entries ? cell.entries.reduce((sum, entry) => sum + entry.height, 0) : 0));
       return { cells, height, indexLines, tipo: row.tipo };
     });
-    const bodyHeight = measured.reduce((sum, row) => sum + row.height, 0);
-    const available = HALF - 2 * MARGIN - FOOTER - headerHeight - 5;
+    const bodyHeight = measured.reduce((sum, row) => sum + row.height, 0) + PRECEPTOR_SIGNATURE;
+    const available = HALF - 2 * MARGIN - headerHeight - 5;
     if (bodyHeight > available) {
       throw new Error(`El horario de ${courseName || curso.id} no cabe en media hoja A4 apaisada: necesita ${bodyHeight.toFixed(1)} mm y dispone de ${available.toFixed(1)} mm. No se pueden conservar todos los textos y 5 mm libres para cada firma. El formato requiere revisar su distribucion; no se omitieron horas ni docentes.`);
     }
-    layouts.set(String(curso.id), { heading, headerHeight, measured, bodyHeight });
+    layouts.set(String(curso.id), { heading, preceptor, headerHeight, measured, bodyHeight });
   });
 
   const drawLines = (lines, x, y, leading = LEADING) => {
@@ -121,7 +123,9 @@ export function createPartePdf({ cursos, semanas, materias = [], bloques = [], i
       doc.setFont("helvetica", "bold");
       drawLines(layout.heading, MARGIN, top + 2.5, 3);
       doc.setFont("helvetica", "normal");
-      drawLines(wrap(`${selectedWeek.label} | ${selectedWeek.monthLabel}`, WIDTH - 2 * MARGIN), MARGIN, top + 2.5 + layout.heading.length * 3, 3);
+      const weekY = top + 2.5 + layout.heading.length * 3;
+      drawLines(wrap(`${selectedWeek.label} | ${selectedWeek.monthLabel}`, HEADER_COLUMN - 2), MARGIN, weekY, 3);
+      drawLines(layout.preceptor, MARGIN + HEADER_COLUMN, weekY, 3);
       let y = top + layout.headerHeight;
       doc.setFontSize(FONT);
       doc.setDrawColor(165, 165, 165);
@@ -139,7 +143,10 @@ export function createPartePdf({ cursos, semanas, materias = [], bloques = [], i
         doc.setFillColor(...(sinColores ? [255, 255, 255] : row.tipo === "Receso" ? [235, 235, 235] : [250, 250, 250]));
         doc.rect(MARGIN, y, INDEX, row.height, "FD");
         doc.setFontSize(row.tipo === "Receso" ? 6 : FONT);
-        drawLines(row.indexLines, MARGIN + PAD, y + (row.tipo === "Receso" ? 1.65 : 2.5), row.tipo === "Receso" ? 1.8 : LEADING);
+        // Inset both labels, reducing padding only in short rows to keep them apart.
+        const indexPadding = Math.min(1.6, Math.max(0, (row.height - LEADING - 1.6) / 2));
+        doc.text(row.indexLines[0], MARGIN + PAD, y + (row.tipo === "Receso" ? 1.65 : 1.6 + indexPadding));
+        doc.text(row.indexLines[1], MARGIN + PAD, y + row.height - (row.tipo === "Receso" ? 0.35 : indexPadding));
         doc.setFontSize(FONT);
         row.cells.forEach((cell, index) => {
           const x = MARGIN + INDEX + index * CELL;
@@ -166,10 +173,15 @@ export function createPartePdf({ cursos, semanas, materias = [], bloques = [], i
         y += row.height;
       });
       doc.setFontSize(6);
-      const footerY = (halfIndex + 1) * HALF - MARGIN;
-      doc.text("Parte semanal de asistencia docente | Firma manuscrita en cada hora asignada", MARGIN, footerY);
-      doc.line(WIDTH - MARGIN - 60, footerY - 2.5, WIDTH - MARGIN, footerY - 2.5);
-      doc.text("Firma del Preceptor", WIDTH - MARGIN - 30, footerY, { align: "center" });
+      doc.setFillColor(255, 255, 255);
+      doc.rect(MARGIN, y, INDEX, PRECEPTOR_SIGNATURE, "FD");
+      DAYS.forEach((_, index) => {
+        const x = MARGIN + INDEX + index * CELL;
+        // Text changes the PDF fill state; restore white for every signing cell.
+        doc.setFillColor(255, 255, 255);
+        doc.rect(x, y, CELL, PRECEPTOR_SIGNATURE, "FD");
+        doc.text("Firma del Preceptor", x + PAD, y + PRECEPTOR_SIGNATURE - PAD);
+      });
     });
     doc.setDrawColor(150, 150, 150);
     doc.setLineWidth(0.15);

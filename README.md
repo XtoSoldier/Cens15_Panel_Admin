@@ -192,13 +192,23 @@ mitad queda vacia; nunca se repite una semana ni se mezclan cursos en una hoja.
 Los dias incluyen su fecha (por ejemplo Lunes 2), el encabezado muestra el mes y
 anio, incluso cuando la semana cruza de mes o de anio.
 
-Cada planilla semanal incluye una unica linea de **Firma del Preceptor** debajo
-de la tabla, a la derecha, con espacio propio para firmar. No se agrega una firma
-en la mitad vacia cuando la seleccion de semanas es impar.
+Cada cabecera semanal muestra **Preceptor a Cargo: Nombre Apellido**, usando el
+campo `preceptorNombre` del curso recibido desde la API de Cursos. Si no tiene
+preceptor, muestra **Preceptor a Cargo: Sin preceptor asignado**. Se usan los datos
+cargados al abrir o actualizar la grilla, sin consultar la API de Preceptores.
+La ultima fila de la tabla agrega cinco celdas de **Firma del Preceptor**, una por
+dia, con al menos 5 mm libres para firmar. Conserva la ultima clase y su horario;
+no hay firma aislada en el pie ni firmas en la mitad vacia de una seleccion impar.
+Las cabeceras con nombres largos se ajustan en lineas y su altura, junto con la
+fila adicional de firmas, participa de la validacion de espacio antes de dibujar.
 
 Se utiliza la semana completa de lunes a viernes, aunque el filtro de pantalla
 oculte dias. Incluye materias, docentes activos y roles, colores pastel, recesos
-y horas libres. Cada hora asignada reserva 5 mm para la firma manuscrita. No se
+y horas libres. Cada celda de Hora / horario distribuye el rotulo arriba y el
+rango horario abajo, con margen interior superior e inferior incluso cuando la
+fila crece por textos largos. El margen se adapta en filas cortas para no
+superponer las lineas. Los recesos conservan su distribucion compacta.
+Cada hora asignada reserva 5 mm para la firma manuscrita. No se
 infieren asistencias, feriados ni licencias. No se modifican datos de la API.
 
 Cambiar cursos, semanas o datos institucionales invalida la vista previa anterior.
@@ -206,3 +216,24 @@ La descarga usa exactamente el archivo mostrado. Si una grilla excepcionalmente
 extensa no cabe en media A4 manteniendo los textos y las firmas, la generacion
 se bloquea con un mensaje: no se recortan horas/docentes ni se agregan hojas de
 continuacion que alteren el formato solicitado.
+
+## Eliminacion Definitiva De Alumnos
+
+En **Alumnos**, solo Admin/SuperAdmin puede elegir **Eliminar definitivamente**,
+tanto en registros activos como con baja logica. El dialogo muestra identidad,
+advertencia irreversible y la verificacion de dependencias desde la API.
+
+Si quedan calificaciones, cursadas, inscripciones, documentos, datos de contacto
+o nacimiento, no permite confirmar. Indica las cantidades y el orden para
+retirarlos manualmente desde la entidad mas hija hasta el alumno, con herramientas
+autorizadas. No borra registros relacionados ni archivos automaticamente; vaciar
+campos de contacto o nacimiento no elimina esas filas. La baja logica no evita
+esta validacion. No se agregan rutas de limpieza masiva.
+
+Sin dependencias, exige escribir **ELIMINAR** y confirmar. Cancelar no modifica
+datos. El servidor vuelve a comprobar todo al eliminar y controla cambios
+concurrentes; ante un conflicto se actualizan las dependencias y se exige otra
+confirmacion. Restaurar permanece como una opcion separada para bajas logicas.
+
+Requiere la API actualizada con `/Alumnos/{id}/permanent-deletion-info` y
+`DELETE /Alumnos/{id}/permanent`. No requiere nueva migracion de esquema.

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 import PropTypes from "prop-types";
@@ -6,6 +6,12 @@ import PropTypes from "prop-types";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogActions from "@mui/material/DialogActions";
+import Alert from "@mui/material/Alert";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -17,10 +23,12 @@ import DataTable from "examples/Tables/DataTable";
 
 import MDBadge from "components/MDBadge";
 import MDButton from "components/MDButton";
+import MDInput from "components/MDInput";
 import Icon from "@mui/material/Icon";
 
 import userService from "services/userService";
 import StatusModal from "components/StatusModal";
+import { matchesSearch } from "utils/textSearch";
 
 const UserCell = ({ name, email }) => (
   <MDBox display="flex" alignItems="center" lineHeight={1}>
@@ -57,10 +65,15 @@ StatusCell.propTypes = {
 function Tables() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [statusModal, setStatusModal] = useState({ open: false, user: null, loading: false });
+  const [accessUser, setAccessUser] = useState(null);
+  const [sendingAccess, setSendingAccess] = useState(false);
+  const [accessError, setAccessError] = useState("");
+  const accessPending = useRef(false);
 
   const fetchUsers = async () => {
     try {
@@ -111,16 +124,35 @@ function Tables() {
     }
   };
 
-  const handleResendInitialAccess = async (user) => {
+  const handleResendInitialAccess = (user) => {
+    if (accessPending.current) return;
     if (!user.email) {
       alert("El usuario no tiene email cargado.");
       return;
     }
+    setAccessError("");
+    setAccessUser(user);
+  };
+
+  const handleAccessClose = () => {
+    if (!accessPending.current) setAccessUser(null);
+  };
+
+  const handleAccessSend = async () => {
+    if (!accessUser || accessPending.current) return;
+    const email = accessUser.email;
+    accessPending.current = true;
+    setSendingAccess(true);
+    setAccessError("");
     try {
-      await userService.requestInitialAccess(user.email);
-      alert(`Se envió el correo de acceso inicial a ${user.email}.`);
+      await userService.requestInitialAccess(email);
+      setAccessUser(null);
+      alert(`Se solicitó el envío del correo de recuperación/ingreso a ${email}.`);
     } catch (err) {
-      alert("Error al enviar correo: " + err.message);
+      setAccessError(err.message || "No se pudo solicitar el envío. Intentá nuevamente.");
+    } finally {
+      accessPending.current = false;
+      setSendingAccess(false);
     }
   };
 
@@ -131,7 +163,11 @@ function Tables() {
     { Header: "Acciones", accessor: "actions", align: "center" },
   ];
 
-  const rows = users.map((user) => {
+  const rows = users.filter((user) => matchesSearch(search, [
+    user.firstName || user.FirstName || user.nombres,
+    user.lastName || user.LastName || user.apellido || user.apellidos,
+    user.email, user.role,
+  ])).map((user) => {
     const firstName = user.firstName || user.FirstName || user.nombres || "";
     const lastName = user.lastName || user.LastName || user.apellido || user.apellidos || "";
 
@@ -157,6 +193,8 @@ function Tables() {
             variant="text"
             color="info"
             size="small"
+            aria-label={`Enviar correo de recuperación o ingreso a ${user.email || "usuario sin email"}`}
+            disabled={sendingAccess}
             onClick={() => handleResendInitialAccess(user)}
           >
             <Icon>mail</Icon>
@@ -202,6 +240,19 @@ function Tables() {
                 </MDButton>
               </MDBox>
               <MDBox pt={3} px={2}>
+                <MDBox display="flex" flexDirection={{ xs: "column", sm: "row" }} gap={2} mb={2} alignItems={{ sm: "flex-start" }}>
+                  <MDInput
+                    type="search"
+                    label="Buscar usuarios"
+                    helperText="Nombre, apellido, email o rol"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    fullWidth
+                  />
+                  <MDButton color="info" variant="outlined" onClick={() => setSearch("")} disabled={!search} sx={{ flexShrink: 0 }}>
+                    Limpiar búsqueda
+                  </MDButton>
+                </MDBox>
                 {loading ? (
                   <MDBox display="flex" justifyContent="center" py={6}>
                     <CircularProgress color="info" />
@@ -210,6 +261,12 @@ function Tables() {
                   <MDBox py={4} textAlign="center">
                     <MDTypography variant="body1" color="error">
                       Error al cargar usuarios: {error}
+                    </MDTypography>
+                  </MDBox>
+                ) : rows.length === 0 ? (
+                  <MDBox py={4} textAlign="center">
+                    <MDTypography variant="body2" color="text">
+                      {users.length ? "No se encontraron usuarios para esta búsqueda." : "No hay usuarios cargados."}
                     </MDTypography>
                   </MDBox>
                 ) : (
@@ -227,6 +284,23 @@ function Tables() {
         </Grid>
       </MDBox>
       <Footer />
+      <Dialog open={Boolean(accessUser)} onClose={handleAccessClose} maxWidth="sm" fullWidth
+        aria-labelledby="access-mail-title" aria-describedby="access-mail-description">
+        <DialogTitle id="access-mail-title">Enviar correo de recuperación/ingreso</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="access-mail-description" sx={{ overflowWrap: "anywhere" }}>
+            Se enviará un correo de recuperación/ingreso a <strong>{accessUser?.email}</strong>.
+            El mensaje incluirá un código para definir una contraseña. La contraseña actual no cambia al enviarlo.
+          </DialogContentText>
+          {accessError && <Alert severity="error" sx={{ mt: 2 }}>{accessError}</Alert>}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <MDButton type="button" variant="outlined" color="dark" onClick={handleAccessClose} disabled={sendingAccess}>Cancelar</MDButton>
+          <MDButton type="button" variant="gradient" color="info" onClick={handleAccessSend} disabled={sendingAccess}>
+            {sendingAccess ? "Enviando..." : "Enviar"}
+          </MDButton>
+        </DialogActions>
+      </Dialog>
       <StatusModal
         open={statusModal.open}
         onClose={handleStatusClose}

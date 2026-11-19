@@ -12,7 +12,7 @@ import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
-import MenuItem from "@mui/material/MenuItem";
+import Autocomplete from "@mui/material/Autocomplete";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -27,6 +27,12 @@ import DataTable from "examples/Tables/DataTable";
 import Icon from "@mui/material/Icon";
 import docenteService from "services/docenteService";
 import userService from "services/userService";
+import { matchesSearch } from "utils/textSearch";
+
+const getUserLabel = (user) => {
+  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+  return [fullName || "Usuario sin nombre", user.email].filter(Boolean).join(" - ");
+};
 
 function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error }) {
   const [formData, setFormData] = useState({
@@ -36,6 +42,12 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
     userId: "",
   });
   const [formError, setFormError] = useState("");
+  const [userQuery, setUserQuery] = useState("");
+  const currentUser = usuarios.find((user) => user.id === formData.userId) || null;
+
+  useEffect(() => {
+    setUserQuery(currentUser ? getUserLabel(currentUser) : "");
+  }, [currentUser, open]);
 
   useEffect(() => {
     if (initialData) {
@@ -62,28 +74,23 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const getUserLabel = (user) => {
-    const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
-    return [fullName || "Usuario sin nombre", user.email].filter(Boolean).join(" - ");
-  };
-
-  const handleUserChange = (e) => {
-    const { value } = e.target;
-    const selectedUser = usuarios.find((user) => user.id === value);
-
+  const handleUserChange = (_, selectedUser) => {
     if (!selectedUser) {
       setFormData((prev) => ({ ...prev, userId: "" }));
       return;
     }
 
-    if (initialData && value !== initialData.userId) {
+    if (initialData && selectedUser.id !== initialData.userId) {
       const ok = window.confirm("Se reemplazará nombre y apellido por el del usuario.");
-      if (!ok) return;
+      if (!ok) {
+        setUserQuery(currentUser ? getUserLabel(currentUser) : "");
+        return;
+      }
     }
 
     setFormData((prev) => ({
       ...prev,
-      userId: value,
+      userId: selectedUser.id,
       nombres: selectedUser.firstName || "",
       apellidos: selectedUser.lastName || "",
       email: selectedUser.email || prev.email,
@@ -157,27 +164,26 @@ function FormModal({ open, onClose, onSave, initialData, saving, usuarios, error
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                select
-                label="Usuario vinculado (opcional)"
-                name="userId"
-                value={formData.userId}
+              <Autocomplete
+                options={usuarios}
+                value={currentUser}
+                inputValue={userQuery}
+                onInputChange={(event, value) => { if (event) setUserQuery(value); }}
                 onChange={handleUserChange}
+                getOptionLabel={getUserLabel}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
                 fullWidth
-                size="medium"
                 disabled={saving}
-                SelectProps={{ native: false }}
-              >
-                <MenuItem value="">
-                  <em>Sin usuario vinculado</em>
-                </MenuItem>
-                {usuarios.map((user) => (
-                  <MenuItem key={user.id} value={user.id}>
-                    {getUserLabel(user)}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <MDTypography variant="caption" color="text.secondary" mt={1} display="block">
+                clearText="Desvincular usuario"
+                openText="Buscar usuarios"
+                closeText="Cerrar lista"
+                noOptionsText="No se encontraron usuarios"
+                renderInput={(params) => (
+                  <TextField {...params} label="Usuario vinculado (opcional)"
+                    helperText="Escribí nombre, apellido o email para buscar. Usá la cruz para desvincular." />
+                )}
+              />
+              <MDTypography variant="caption" color="text" mt={1} display="block">
                 Solo se muestran usuarios disponibles o el usuario ya vinculado a este docente.
               </MDTypography>
             </Grid>
@@ -242,6 +248,7 @@ DeleteModal.propTypes = {
 
 function Docentes() {
   const [docentes, setDocentes] = useState([]);
+  const [search, setSearch] = useState("");
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -331,7 +338,7 @@ function Docentes() {
     const lista = docente.materias || [];
     if (lista.length === 0) {
       return (
-        <MDTypography variant="caption" color="text.secondary">
+        <MDTypography variant="caption" color="text">
           Sin materias
         </MDTypography>
       );
@@ -343,7 +350,10 @@ function Docentes() {
     ));
   };
 
-  const rows = docentes.map((item) => ({
+  const rows = docentes.filter((item) => matchesSearch(search, [
+    item.apellidos, item.nombres, item.email,
+    ...(item.materias || []).flatMap((materia) => [materia.materia, materia.curso, materia.division, materia.rol]),
+  ])).map((item) => ({
     apellidos: (
       <MDTypography variant="button" fontWeight="medium">
         {item.apellidos}
@@ -352,7 +362,7 @@ function Docentes() {
     nombres: <MDTypography variant="body2">{item.nombres}</MDTypography>,
     email: (
       <MDTypography variant="caption" color="text">
-        {item.email}
+        {item.email || "-"}
       </MDTypography>
     ),
     usuario: item.userId ? (
@@ -360,7 +370,7 @@ function Docentes() {
         Vinculado
       </MDTypography>
     ) : (
-      <MDTypography variant="caption" color="text.secondary">
+      <MDTypography variant="caption" color="text">
         Sin vincular
       </MDTypography>
     ),
@@ -410,6 +420,19 @@ function Docentes() {
                 </MDButton>
               </MDBox>
               <MDBox pt={3} px={2}>
+                <MDBox display="flex" flexDirection={{ xs: "column", sm: "row" }} gap={2} mb={2} alignItems={{ sm: "flex-start" }}>
+                  <MDInput
+                    type="search"
+                    label="Buscar docentes"
+                    helperText="Nombre, apellido, email, materia o curso"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    fullWidth
+                  />
+                  <MDButton color="info" variant="outlined" onClick={() => setSearch("")} disabled={!search} sx={{ flexShrink: 0 }}>
+                    Limpiar búsqueda
+                  </MDButton>
+                </MDBox>
                 {loading ? (
                   <MDBox display="flex" justifyContent="center" py={6}>
                     <CircularProgress color="info" />
@@ -418,6 +441,12 @@ function Docentes() {
                   <MDBox py={4} textAlign="center">
                     <MDTypography variant="body1" color="error">
                       Error al cargar docentes: {error}
+                    </MDTypography>
+                  </MDBox>
+                ) : rows.length === 0 ? (
+                  <MDBox py={4} textAlign="center">
+                    <MDTypography variant="body2" color="text">
+                      {docentes.length ? "No se encontraron docentes para esta búsqueda." : "No hay docentes cargados."}
                     </MDTypography>
                   </MDBox>
                 ) : (
